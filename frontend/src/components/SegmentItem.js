@@ -196,9 +196,16 @@ const SegmentItem = ({
     
     // Get the base URL without the /api part
     const baseUrl = apiBaseUrl.replace('/api', '');
+    const fullUrl = `${baseUrl}${segment.audio_path}`;
     
-    // Return the full URL to the audio file
-    return `${baseUrl}${segment.audio_path}`;
+    console.log('Audio URL:', {
+      segmentType: segment.segment_type,
+      audioPath: segment.audio_path,
+      baseUrl,
+      fullUrl
+    });
+    
+    return fullUrl;
   };
 
   return (
@@ -274,16 +281,21 @@ const SegmentItem = ({
             </Typography>
           </Box>
           
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {segment.audio_path && !isGenerating && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: '160px', maxWidth: '220px' }}>
+            {segment.audio_path && !isGenerating ? (
               <AudioPlayer 
                 audioUrl={getAudioUrl()} 
                 compact={true}
               />
-            )}
-            {isGenerating && (
-              <CircularProgress size={18} sx={{ mr: 1 }} />
-            )}
+            ) : isGenerating ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+                <CircularProgress size={18} sx={{ mr: 0.5 }} />
+                <Typography variant="caption" color="text.secondary">
+                  Generating...
+                </Typography>
+              </Box>
+            ) : null}
+            
             <IconButton
               size="small"
               color="error"
