@@ -38,11 +38,41 @@ const SegmentItem = ({
       if (onUpdate) {
         onUpdate(response.data);
       }
+      // Automatically generate speech if this is a bot segment
+      if (segment.segment_type === 'bot') {
+        await handleGenerateSpeechWithText(newText);
+      }
     } catch (err) {
       setError('Failed to update text');
       console.error('Error updating segment text:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper to generate speech with the latest text
+  const handleGenerateSpeechWithText = async (text) => {
+    if (!text) return;
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const outputPath = `/episodes/${episodeId}/segments/${segment.id}.mp3`;
+      await generateSpeech(text, outputPath);
+      // Update segment with new audio path
+      const updatedSegment = {
+        ...segment,
+        audio_path: outputPath,
+        text_content: text
+      };
+      const response = await updateSegment(episodeId, segment.id, updatedSegment);
+      if (onUpdate) {
+        onUpdate(response.data);
+      }
+    } catch (err) {
+      setError('Failed to generate speech');
+      console.error('Error generating speech:', err);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -156,7 +186,7 @@ const SegmentItem = ({
           title={segment.segment_type === 'human' ? 'Transcription' : 'AI Response'}
           isGenerating={isGenerating}
           onGenerateRequest={
-            segment.segment_type === 'bot' ? handleGenerateSpeech : undefined
+            segment.segment_type === 'bot' && !segment.text_content ? handleGenerateSpeech : undefined
           }
         />
         
