@@ -34,10 +34,11 @@ async def synthesize_speech(
     _: str = Depends(get_current_user),
 ):
     """Generate speech from text using ElevenLabs."""
-    success, message = generate_speech(request.text, request.output_path)
+    success, message, file_path = generate_speech(request.text, request.output_path)
     return {
         "success": success,
         "message": message,
+        "file_path": file_path,
     }
 
 
