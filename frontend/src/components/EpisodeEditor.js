@@ -540,15 +540,11 @@ const EpisodeEditor = ({ episodeId }) => {
           
           <Divider sx={{ my: 2 }} />
           
-          <Typography variant="h6" gutterBottom>
-            Segments
-          </Typography>
-          
-          {segments.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ my: 3 }}>
-              No segments yet. Add your first segment below.
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Segments
             </Typography>
-          ) : (
+            
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -576,44 +572,50 @@ const EpisodeEditor = ({ episodeId }) => {
                   </IconButton>
                 </Box>
                 
-                <SortableContext 
-                  items={segments.map(s => s.id)} 
-                  strategy={verticalListSortingStrategy}
-                >
-                  {segments.map((segment, index) => (
-                    <Box key={segment.id} sx={{ position: 'relative' }}>
-                      <SortableSegmentItem
-                        id={segment.id}
-                        segment={segment}
-                        episodeId={episodeId}
-                        onDelete={handleSegmentDelete}
-                        onUpdate={handleSegmentUpdate}
-                        apiBaseUrl={API_URL}
-                      />
-                      
-                      {/* Add insert button between segments */}
-                      <Box 
-                        sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'center', 
-                          my: 0.5,
-                          borderRadius: 1,
-                          border: '1px dashed #eee',
-                          p: 0.2
-                        }}
-                      >
-                        <IconButton 
-                          size="small" 
-                          onClick={(e) => handleOpenInsertMenu(e, index + 1)}
-                          color="primary"
-                          sx={{ padding: '2px' }}
+                {segments.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ my: 3, textAlign: 'center' }}>
+                    No segments yet. Click the plus button above to add your first segment.
+                  </Typography>
+                ) : (
+                  <SortableContext 
+                    items={segments.map(s => s.id)} 
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {segments.map((segment, index) => (
+                      <Box key={segment.id} sx={{ position: 'relative' }}>
+                        <SortableSegmentItem
+                          id={segment.id}
+                          segment={segment}
+                          episodeId={episodeId}
+                          onDelete={handleSegmentDelete}
+                          onUpdate={handleSegmentUpdate}
+                          apiBaseUrl={API_URL}
+                        />
+                        
+                        {/* Add insert button between segments */}
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            my: 0.5,
+                            borderRadius: 1,
+                            border: '1px dashed #eee',
+                            p: 0.2
+                          }}
                         >
-                          <AddIcon fontSize="small" />
-                        </IconButton>
+                          <IconButton 
+                            size="small" 
+                            onClick={(e) => handleOpenInsertMenu(e, index + 1)}
+                            color="primary"
+                            sx={{ padding: '2px' }}
+                          >
+                            <AddIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
                       </Box>
-                    </Box>
-                  ))}
-                </SortableContext>
+                    ))}
+                  </SortableContext>
+                )}
                 
                 <DragOverlay>
                   {activeId ? (
@@ -627,7 +629,8 @@ const EpisodeEditor = ({ episodeId }) => {
                 </DragOverlay>
               </Box>
             </DndContext>
-          )}
+            
+          </Box>
           
         </Paper>
         
