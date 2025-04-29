@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { AppBar, Box, Container, Toolbar, Typography, Button } from '@mui/material';
 import EpisodeList from './pages/EpisodeList';
 import EpisodeEditor from './components/EpisodeEditor';
+import Research from './pages/Research';
 
 // Create a theme
 const theme = createTheme({
@@ -50,6 +51,7 @@ function App() {
                 Podcast Recording App
               </Typography>
               <Button color="inherit" href="/">Episodes</Button>
+              <Button color="inherit" href="/research">Research</Button>
             </Toolbar>
           </AppBar>
           
@@ -57,6 +59,7 @@ function App() {
             <Routes>
               <Route path="/" element={<EpisodeList />} />
               <Route path="/episodes/:id" element={<EpisodeEditorPage />} />
+              <Route path="/research" element={<Research />} />
             </Routes>
           </Container>
         </Box>

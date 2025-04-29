@@ -52,6 +52,7 @@ import {
   generateText,
   generateSpeech
 } from '../services/api';
+import EpisodeSources from './EpisodeSources';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -517,243 +518,252 @@ const EpisodeEditor = ({ episodeId }) => {
   }
 
   return (
-    <Container maxWidth="md">
-      <Paper sx={{ p: 3, mt: 3 }}>
+    <Box>
+      <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          {episode?.title || 'Episode Editor'}
+          {episode?.title}
         </Typography>
-        
-        {episode?.description && (
-          <Typography variant="body1" color="text.secondary" paragraph>
-            {episode.description}
-          </Typography>
-        )}
-        
-        <Divider sx={{ my: 2 }} />
-        
-        <Typography variant="h6" gutterBottom>
-          Segments
+        <Typography variant="body1" color="text.secondary" paragraph>
+          {episode?.description}
         </Typography>
-        
-        {segments.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ my: 3 }}>
-            No segments yet. Add your first segment below.
+      </Box>
+
+      <Box sx={{ mb: 4 }}>
+        <EpisodeSources episodeId={episodeId} episodeSources={episode?.sources || []} />
+      </Box>
+
+      <Container maxWidth="md">
+        <Paper sx={{ p: 3, mt: 3 }}>
+          <Typography variant="h4" gutterBottom>
+            {episode?.title || 'Episode Editor'}
           </Typography>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <Box sx={{ my: 2 }}>
-              {/* Add insert button at the top */}
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  mb: 1, 
-                  borderRadius: 1,
-                  border: '1px dashed #ccc',
-                  p: 0.5
-                }}
-              >
-                <IconButton 
-                  size="small" 
-                  onClick={(e) => handleOpenInsertMenu(e, 0)}
-                  color="primary"
-                >
-                  <AddIcon />
-                </IconButton>
-              </Box>
-              
-              <SortableContext 
-                items={segments.map(s => s.id)} 
-                strategy={verticalListSortingStrategy}
-              >
-                {segments.map((segment, index) => (
-                  <Box key={segment.id} sx={{ position: 'relative' }}>
-                    <SortableSegmentItem
-                      id={segment.id}
-                      segment={segment}
-                      episodeId={episodeId}
-                      onDelete={handleSegmentDelete}
-                      onUpdate={handleSegmentUpdate}
-                      apiBaseUrl={API_URL}
-                    />
-                    
-                    {/* Add insert button between segments */}
-                    <Box 
-                      sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        my: 0.5,
-                        borderRadius: 1,
-                        border: '1px dashed #eee',
-                        p: 0.2
-                      }}
-                    >
-                      <IconButton 
-                        size="small" 
-                        onClick={(e) => handleOpenInsertMenu(e, index + 1)}
-                        color="primary"
-                        sx={{ padding: '2px' }}
-                      >
-                        <AddIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Box>
-                ))}
-              </SortableContext>
-              
-              <DragOverlay>
-                {activeId ? (
-                  <SegmentItem
-                    segment={getActiveSegment()}
-                    episodeId={episodeId}
-                    apiBaseUrl={API_URL}
-                    isDragging={true}
-                  />
-                ) : null}
-              </DragOverlay>
-            </Box>
-          </DndContext>
-        )}
-        
-      </Paper>
-      
-      {/* Insert Menu */}
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl)}
-        onClose={handleCloseInsertMenu}
-      >
-        <MenuItem 
-          onClick={() => {
-            handleCloseInsertMenu();
-            handleAddHumanSegment(insertPosition);
-          }}
-        >
-          <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-          Insert Human Segment
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            handleCloseInsertMenu();
-            handleAddBotSegment(insertPosition);
-          }}
-        >
-          <SmartToyIcon fontSize="small" sx={{ mr: 1 }} />
-          Insert AI Segment
-        </MenuItem>
-      </Menu>
-      
-      {/* Human Dialog */}
-      <Dialog
-        open={addHumanDialogOpen}
-        onClose={handleHumanDialogClose}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {insertPosition !== null ? 'Insert Human Segment' : 'Add Human Segment'}
-        </DialogTitle>
-        <DialogContent>
-          <AudioRecorder
-            onAudioRecorded={handleAudioRecorded}
-            onAudioUploaded={(blob) => handleAudioUploaded(blob, episodeId)}
-            episodeId={episodeId}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleHumanDialogClose}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
-      
-      {/* Bot Dialog */}
-      <Dialog
-        open={addBotDialogOpen}
-        onClose={handleBotDialogClose}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {insertPosition !== null ? 'Insert AI Segment' : 'Add AI Segment'}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ my: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Optional Prompt
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={2}
-              placeholder="Enter a prompt for the AI (leave empty for default generation)"
-              value={botPrompt}
-              onChange={(e) => setBotPrompt(e.target.value)}
-              disabled={isGenerating}
-            />
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{ mt: 2 }}
-              onClick={() => handleGenerateResponse()}
-              disabled={isGenerating}
-              startIcon={isGenerating ? <CircularProgress size={20} /> : <SmartToyIcon />}
-            >
-              {isGenerating ? 'Generating...' : 'Generate Response'}
-            </Button>
-          </Box>
           
-          {botResponse && (
-            <Box sx={{ mt: 3 }}>
-              <TextEditor
-                text={botResponse}
-                title="AI Response"
-                onSave={(text) => setBotResponse(text)}
-              />
-            </Box>
+          <Divider sx={{ my: 2 }} />
+          
+          <Typography variant="h6" gutterBottom>
+            Segments
+          </Typography>
+          
+          {segments.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ my: 3 }}>
+              No segments yet. Add your first segment below.
+            </Typography>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <Box sx={{ my: 2 }}>
+                {/* Add insert button at the top */}
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    mb: 1, 
+                    borderRadius: 1,
+                    border: '1px dashed #ccc',
+                    p: 0.5
+                  }}
+                >
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => handleOpenInsertMenu(e, 0)}
+                    color="primary"
+                  >
+                    <AddIcon />
+                  </IconButton>
+                </Box>
+                
+                <SortableContext 
+                  items={segments.map(s => s.id)} 
+                  strategy={verticalListSortingStrategy}
+                >
+                  {segments.map((segment, index) => (
+                    <Box key={segment.id} sx={{ position: 'relative' }}>
+                      <SortableSegmentItem
+                        id={segment.id}
+                        segment={segment}
+                        episodeId={episodeId}
+                        onDelete={handleSegmentDelete}
+                        onUpdate={handleSegmentUpdate}
+                        apiBaseUrl={API_URL}
+                      />
+                      
+                      {/* Add insert button between segments */}
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          my: 0.5,
+                          borderRadius: 1,
+                          border: '1px dashed #eee',
+                          p: 0.2
+                        }}
+                      >
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => handleOpenInsertMenu(e, index + 1)}
+                          color="primary"
+                          sx={{ padding: '2px' }}
+                        >
+                          <AddIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  ))}
+                </SortableContext>
+                
+                <DragOverlay>
+                  {activeId ? (
+                    <SegmentItem
+                      segment={getActiveSegment()}
+                      episodeId={episodeId}
+                      apiBaseUrl={API_URL}
+                      isDragging={true}
+                    />
+                  ) : null}
+                </DragOverlay>
+              </Box>
+            </DndContext>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleBotDialogClose}>Cancel</Button>
-          <Button 
-            onClick={handleSaveBot} 
-            variant="contained" 
-            disabled={!botResponse}
-            color="primary"
-          >
-            Save Segment
-          </Button>
-        </DialogActions>
-      </Dialog>
-      
-      {/* Edit Dialog */}
-      <EditDialog
-        open={editDialogOpen}
-        segment={currentEditSegment}
-        onClose={() => setEditDialogOpen(false)}
-        onSave={handleSaveEditedSegment}
-        isGenerating={false}
-      />
-      
-      {/* Notification */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseNotification} 
-          severity={notification.severity} 
-          sx={{ width: '100%' }}
+          
+        </Paper>
+        
+        {/* Insert Menu */}
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleCloseInsertMenu}
         >
-          {notification.message}
-        </Alert>
-      </Snackbar>
-    </Container>
+          <MenuItem 
+            onClick={() => {
+              handleCloseInsertMenu();
+              handleAddHumanSegment(insertPosition);
+            }}
+          >
+            <PersonIcon fontSize="small" sx={{ mr: 1 }} />
+            Insert Human Segment
+          </MenuItem>
+          <MenuItem 
+            onClick={() => {
+              handleCloseInsertMenu();
+              handleAddBotSegment(insertPosition);
+            }}
+          >
+            <SmartToyIcon fontSize="small" sx={{ mr: 1 }} />
+            Insert AI Segment
+          </MenuItem>
+        </Menu>
+        
+        {/* Human Dialog */}
+        <Dialog
+          open={addHumanDialogOpen}
+          onClose={handleHumanDialogClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {insertPosition !== null ? 'Insert Human Segment' : 'Add Human Segment'}
+          </DialogTitle>
+          <DialogContent>
+            <AudioRecorder
+              onAudioRecorded={handleAudioRecorded}
+              onAudioUploaded={(blob) => handleAudioUploaded(blob, episodeId)}
+              episodeId={episodeId}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleHumanDialogClose}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
+        
+        {/* Bot Dialog */}
+        <Dialog
+          open={addBotDialogOpen}
+          onClose={handleBotDialogClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {insertPosition !== null ? 'Insert AI Segment' : 'Add AI Segment'}
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ my: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Optional Prompt
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                placeholder="Enter a prompt for the AI (leave empty for default generation)"
+                value={botPrompt}
+                onChange={(e) => setBotPrompt(e.target.value)}
+                disabled={isGenerating}
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{ mt: 2 }}
+                onClick={() => handleGenerateResponse()}
+                disabled={isGenerating}
+                startIcon={isGenerating ? <CircularProgress size={20} /> : <SmartToyIcon />}
+              >
+                {isGenerating ? 'Generating...' : 'Generate Response'}
+              </Button>
+            </Box>
+            
+            {botResponse && (
+              <Box sx={{ mt: 3 }}>
+                <TextEditor
+                  text={botResponse}
+                  title="AI Response"
+                  onSave={(text) => setBotResponse(text)}
+                />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleBotDialogClose}>Cancel</Button>
+            <Button 
+              onClick={handleSaveBot} 
+              variant="contained" 
+              disabled={!botResponse}
+              color="primary"
+            >
+              Save Segment
+            </Button>
+          </DialogActions>
+        </Dialog>
+        
+        {/* Edit Dialog */}
+        <EditDialog
+          open={editDialogOpen}
+          segment={currentEditSegment}
+          onClose={() => setEditDialogOpen(false)}
+          onSave={handleSaveEditedSegment}
+          isGenerating={false}
+        />
+        
+        {/* Notification */}
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={6000}
+          onClose={handleCloseNotification}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={handleCloseNotification} 
+            severity={notification.severity} 
+            sx={{ width: '100%' }}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
+      </Container>
+    </Box>
   );
 };
 

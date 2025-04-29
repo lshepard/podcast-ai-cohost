@@ -18,6 +18,17 @@ export const createEpisode = (data) => api.post('/episodes', data);
 export const updateEpisode = (id, data) => api.put(`/episodes/${id}`, data);
 export const deleteEpisode = (id) => api.delete(`/episodes/${id}`);
 
+// Source API
+export const getSources = () => api.get('/sources');
+export const getSource = (id) => api.get(`/sources/${id}`);
+export const createSource = (data) => api.post('/sources', data);
+export const updateSource = (id, data) => api.put(`/sources/${id}`, data);
+export const deleteSource = (id) => api.delete(`/sources/${id}`);
+export const addSourceToEpisode = (episodeId, sourceId) => 
+  api.post(`/episodes/${episodeId}/sources/${sourceId}`);
+export const removeSourceFromEpisode = (episodeId, sourceId) => 
+  api.delete(`/episodes/${episodeId}/sources/${sourceId}`);
+
 // Segment API
 export const getSegments = (episodeId) => api.get(`/episodes/${episodeId}/segments`);
 export const getSegment = (episodeId, segmentId) => api.get(`/episodes/${episodeId}/segments/${segmentId}`);

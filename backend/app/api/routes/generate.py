@@ -37,6 +37,14 @@ async def generate_text(
     # Prepare conversation context
     context = prepare_podcast_context(db_episode.title, db_episode.description)
     
+    # Add source context if available
+    if db_episode.sources:
+        source_context = "\n\nRelevant research and sources:\n"
+        for source in db_episode.sources:
+            if source.content:
+                source_context += f"\nSource: {source.title}\n{source.content}\n"
+        context += source_context
+    
     # Prepare conversation history from previous segments
     history = []
     for segment in previous_segments:

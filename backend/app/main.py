@@ -7,7 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import os
 
-from app.api.routes import audio, episodes, generate, segments
+from app.api.routes import audio, episodes, generate, segments, sources
 from app.core.config import settings
 from app.db.session import init_db
 from app.admin import mount_admin
@@ -69,6 +69,7 @@ app.include_router(episodes.router, prefix=settings.API_V1_STR)
 app.include_router(segments.router, prefix=settings.API_V1_STR)
 app.include_router(audio.router, prefix=settings.API_V1_STR)
 app.include_router(generate.router, prefix=settings.API_V1_STR)
+app.include_router(sources.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():

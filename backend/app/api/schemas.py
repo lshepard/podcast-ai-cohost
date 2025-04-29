@@ -10,6 +10,40 @@ class SegmentType(str, Enum):
     BOT = "bot"
 
 
+class SourceType(str, Enum):
+    PDF = "pdf"
+    WEB = "web"
+
+
+# Source schemas
+class SourceBase(BaseModel):
+    title: str
+    source_type: SourceType
+    content: Optional[str] = None
+    url: Optional[str] = None
+    file_path: Optional[str] = None
+
+
+class SourceCreate(SourceBase):
+    pass
+
+
+class SourceUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    url: Optional[str] = None
+    file_path: Optional[str] = None
+
+
+class Source(SourceBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # Episode schemas
 class EpisodeBase(BaseModel):
     title: str
@@ -28,6 +62,7 @@ class Episode(EpisodeBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    sources: List[Source] = []
 
     class Config:
         from_attributes = True
