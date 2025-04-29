@@ -20,6 +20,7 @@ class SourceBase(BaseModel):
     title: str
     source_type: SourceType
     content: Optional[str] = None
+    summary: Optional[str] = None
     url: Optional[str] = None
     file_path: Optional[str] = None
 
@@ -31,6 +32,7 @@ class SourceCreate(SourceBase):
 class SourceUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
+    summary: Optional[str] = None
     url: Optional[str] = None
     file_path: Optional[str] = None
 

@@ -21,7 +21,24 @@ export const deleteEpisode = (id) => api.delete(`/episodes/${id}`);
 // Source API
 export const getSources = () => api.get('/sources');
 export const getSource = (id) => api.get(`/sources/${id}`);
-export const createSource = (data) => api.post('/sources', data);
+export const createSource = (data) => {
+  const formData = new FormData();
+  
+  // Add all fields to formData
+  Object.keys(data).forEach(key => {
+    if (key === 'file' && data[key]) {
+      formData.append('file', data[key]);
+    } else {
+      formData.append(key, data[key]);
+    }
+  });
+  
+  return api.post('/sources', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
 export const updateSource = (id, data) => api.put(`/sources/${id}`, data);
 export const deleteSource = (id) => api.delete(`/sources/${id}`);
 export const addSourceToEpisode = (episodeId, sourceId) => 

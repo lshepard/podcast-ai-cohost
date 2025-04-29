@@ -35,6 +35,7 @@ class Source(Base):
     title = Column(String(255), index=True)
     source_type = Column(SQLEnum(SourceType))
     content = Column(Text, nullable=True)  # Processed text content
+    summary = Column(Text, nullable=True)  # LLM-generated summary
     url = Column(String(512), nullable=True)  # For web sources
     file_path = Column(String(512), nullable=True)  # For PDF sources
     created_at = Column(DateTime, default=datetime.utcnow)

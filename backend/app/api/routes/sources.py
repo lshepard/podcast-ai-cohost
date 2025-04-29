@@ -7,6 +7,7 @@ from app.api import schemas
 from app.api.deps import get_current_user
 from app.db import models
 from app.db.session import get_db
+from app.lib.web import process_web_source
 
 router = APIRouter()
 
@@ -18,6 +19,20 @@ async def create_source(
     _: str = Depends(get_current_user),
 ):
     """Create a new source."""
+    # Process web sources
+    if source.source_type == models.SourceType.WEB and source.url:
+        result = process_web_source(source.url)
+        if not result['success']:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get('error', 'Failed to process web source')
+            )
+        
+        # Update source with scraped content and summary
+        source.content = result['content']
+        source.summary = result['summary']
+    
+    # Create the source
     db_source = models.Source(**source.model_dump())
     db.add(db_source)
     db.commit()
