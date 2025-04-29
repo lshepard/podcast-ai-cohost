@@ -15,11 +15,31 @@ import {
   TextField,
   Typography,
   Alert,
+  IconButton,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import SegmentItem from './SegmentItem';
+import SortableSegmentItem from './SortableSegmentItem';
 import AudioRecorder from './AudioRecorder';
 import TextEditor from './TextEditor';
 import { 
@@ -39,17 +59,34 @@ const EpisodeEditor = ({ episodeId }) => {
   const [segments, setSegments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeId, setActiveId] = useState(null);
   
   // Dialog states
   const [addHumanDialogOpen, setAddHumanDialogOpen] = useState(false);
   const [addBotDialogOpen, setAddBotDialogOpen] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
-
+  
+  // Insert segment menu
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [insertPosition, setInsertPosition] = useState(null);
+  
   // States for adding segments
   const [recordedAudioBlob, setRecordedAudioBlob] = useState(null);
   const [botPrompt, setBotPrompt] = useState('');
   const [botResponse, setBotResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Set up DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchEpisodeData();
@@ -64,7 +101,14 @@ const EpisodeEditor = ({ episodeId }) => {
       setEpisode(episodeResponse.data);
       
       const segmentsResponse = await getSegments(episodeId);
-      setSegments(segmentsResponse.data);
+      const segmentsWithIds = segmentsResponse.data.map(segment => ({
+        ...segment,
+        id: segment.id.toString()
+      }));
+      setSegments(segmentsWithIds);
+      
+      // Log segment IDs for debugging
+      console.log('Segment IDs:', segmentsWithIds.map(s => s.id));
     } catch (err) {
       setError('Failed to load episode data');
       console.error('Error fetching episode data:', err);
@@ -73,17 +117,20 @@ const EpisodeEditor = ({ episodeId }) => {
     }
   };
 
-  const handleAddHumanSegment = () => {
+  const handleAddHumanSegment = (position = null) => {
+    setInsertPosition(position);
     setAddHumanDialogOpen(true);
   };
 
-  const handleAddBotSegment = () => {
+  const handleAddBotSegment = (position = null) => {
+    setInsertPosition(position);
     setAddBotDialogOpen(true);
   };
 
   const handleHumanDialogClose = () => {
     setAddHumanDialogOpen(false);
     setRecordedAudioBlob(null);
+    setInsertPosition(null);
   };
 
   const handleBotDialogClose = () => {
@@ -91,6 +138,7 @@ const EpisodeEditor = ({ episodeId }) => {
     setBotPrompt('');
     setBotResponse('');
     setIsGenerating(false);
+    setInsertPosition(null);
   };
 
   const handleAudioRecorded = (blob) => {
@@ -101,14 +149,25 @@ const EpisodeEditor = ({ episodeId }) => {
     try {
       // First create a segment
       if (!segmentId) {
+        // If we're inserting at a specific position, handle reordering
+        let segmentIndex = segments.length;
+        if (insertPosition !== null && insertPosition >= 0) {
+          segmentIndex = insertPosition;
+        }
+        
         const newSegmentData = {
           segment_type: 'human',
-          order_index: segments.length,
+          order_index: segmentIndex,
           text_content: ''
         };
         
         const segmentResponse = await createSegment(episodeId, newSegmentData);
         segmentId = segmentResponse.data.id;
+        
+        // If inserting in the middle, update order_index of subsequent segments
+        if (insertPosition !== null && insertPosition < segments.length) {
+          await updateSegmentOrders(segments, insertPosition, true);
+        }
       }
       
       // Upload the audio file
@@ -154,51 +213,199 @@ const EpisodeEditor = ({ episodeId }) => {
     if (!botResponse) return;
     
     try {
+      // If we're inserting at a specific position, handle reordering
+      let segmentIndex = segments.length;
+      if (insertPosition !== null && insertPosition >= 0) {
+        segmentIndex = insertPosition;
+      }
+      
+      // Create and save the segment immediately
       const newSegmentData = {
         segment_type: 'bot',
-        order_index: segments.length,
+        order_index: segmentIndex,
         text_content: botResponse
       };
       
       const response = await createSegment(episodeId, newSegmentData);
       const newSegment = response.data;
       
-      // Generate speech for the new bot segment
-      try {
-        const outputPath = `/episodes/${episodeId}/segments/${newSegment.id}.mp3`;
-        await generateSpeech(botResponse, outputPath);
-        
-        // Update the segment with the audio path
-        await updateSegment(episodeId, newSegment.id, {
-          audio_path: outputPath
-        });
-      } catch (speechErr) {
-        console.error('Error generating speech for new bot segment:', speechErr);
-        // Continue with the flow even if speech generation fails
+      // If inserting in the middle, update order_index of subsequent segments
+      if (insertPosition !== null && insertPosition < segments.length) {
+        await updateSegmentOrders(segments, insertPosition, true);
       }
       
-      // Refresh segments
-      await fetchEpisodeData();
-      
-      // Close dialog
+      // Close the dialog immediately
       handleBotDialogClose();
       
-      showNotification('AI segment added successfully', 'success');
+      // Show initial success message
+      showNotification('AI segment saved successfully', 'success');
+      
+      // Add the new segment to the list without waiting for audio
+      setSegments(prevSegments => {
+        const newSegments = [...prevSegments];
+        // Add id property for dnd-kit
+        const newSegmentWithId = { 
+          ...newSegment, 
+          id: newSegment.id.toString()
+        };
+        
+        if (insertPosition !== null && insertPosition >= 0) {
+          newSegments.splice(insertPosition, 0, newSegmentWithId);
+        } else {
+          newSegments.push(newSegmentWithId);
+        }
+        return newSegments;
+      });
+      
+      // Generate speech asynchronously
+      generateAudioForSegment(newSegment.id, botResponse);
     } catch (err) {
       console.error('Error saving bot segment:', err);
       showNotification('Failed to save AI segment', 'error');
     }
   };
 
+  // Separate function to generate audio for a segment
+  const generateAudioForSegment = async (segmentId, text) => {
+    try {
+      // First update the segment to show generating status
+      setSegments(prevSegments => 
+        prevSegments.map(seg => 
+          seg.id === segmentId.toString()
+            ? { ...seg, isGeneratingSpeech: true } 
+            : seg
+        )
+      );
+      
+      // Generate the speech
+      const outputPath = `/episodes/${episodeId}/segments/${segmentId}.mp3`;
+      await generateSpeech(text, outputPath);
+      
+      // Update the segment with the audio path
+      await updateSegment(episodeId, segmentId, {
+        audio_path: outputPath
+      });
+      
+      // Refresh to get the latest data
+      await fetchEpisodeData();
+    } catch (err) {
+      console.error('Error generating speech:', err);
+      showNotification('Audio generation failed', 'warning');
+      
+      // Update segments to remove loading state
+      setSegments(prevSegments => 
+        prevSegments.map(seg => 
+          seg.id === segmentId.toString()
+            ? { ...seg, isGeneratingSpeech: false } 
+            : seg
+        )
+      );
+    }
+  };
+
   const handleSegmentUpdate = (updatedSegment) => {
     setSegments(segments.map(seg => 
-      seg.id === updatedSegment.id ? updatedSegment : seg
+      seg.id === updatedSegment.id.toString()
+        ? { ...updatedSegment, id: updatedSegment.id.toString() } 
+        : seg
     ));
   };
 
   const handleSegmentDelete = (segmentId) => {
-    setSegments(segments.filter(seg => seg.id !== segmentId));
+    setSegments(segments.filter(seg => seg.id !== segmentId.toString()));
     showNotification('Segment deleted successfully', 'success');
+  };
+
+  // Handle drag start
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  // Handle drag end with dnd-kit
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) {
+      setActiveId(null);
+      return;
+    }
+    
+    try {
+      // Find indices for source and destination
+      const oldIndex = segments.findIndex(segment => segment.id === active.id);
+      const newIndex = segments.findIndex(segment => segment.id === over.id);
+      
+      if (oldIndex === newIndex) {
+        setActiveId(null);
+        return;
+      }
+      
+      // Create reordered array
+      const reorderedSegments = arrayMove(segments, oldIndex, newIndex);
+      
+      // Update UI immediately
+      setSegments(reorderedSegments);
+      
+      // Update order indexes in database
+      const reorderedIds = reorderedSegments.map((segment, index) => ({
+        id: parseInt(segment.id),
+        order_index: index
+      }));
+      
+      await Promise.all(
+        reorderedIds.map(segment => 
+          updateSegment(episodeId, segment.id, {
+            order_index: segment.order_index
+          })
+        )
+      );
+      
+      showNotification('Segments reordered successfully', 'success');
+    } catch (err) {
+      console.error('Error reordering segments:', err);
+      showNotification('Failed to reorder segments', 'error');
+      
+      // Revert to original order on error
+      await fetchEpisodeData();
+    } finally {
+      setActiveId(null);
+    }
+  };
+  
+  // Update segment order indexes in the database
+  const updateSegmentOrders = async (segmentsToUpdate, startIndex = 0, isInsert = false) => {
+    // If inserting, only update segments after the insertion point
+    const segmentsToReorder = isInsert
+      ? segments.slice(startIndex).map((seg, i) => ({ 
+          id: parseInt(seg.id), // Convert string ID back to number
+          order_index: startIndex + i + 1 
+        }))
+      : segmentsToUpdate.map((seg, i) => ({ 
+          id: parseInt(seg.id), // Convert string ID back to number
+          order_index: i 
+        }));
+    
+    // Update each segment's order_index in the database
+    if (segmentsToReorder.length > 0) {
+      await Promise.all(
+        segmentsToReorder.map(segment => 
+          updateSegment(episodeId, segment.id, {
+            order_index: segment.order_index
+          })
+        )
+      );
+    }
+  };
+  
+  // Open the insert menu
+  const handleOpenInsertMenu = (event, position) => {
+    setMenuAnchorEl(event.currentTarget);
+    setInsertPosition(position);
+  };
+  
+  // Close the insert menu
+  const handleCloseInsertMenu = () => {
+    setMenuAnchorEl(null);
   };
 
   const showNotification = (message, severity = 'info') => {
@@ -211,6 +418,12 @@ const EpisodeEditor = ({ episodeId }) => {
 
   const handleCloseNotification = () => {
     setNotification({ ...notification, open: false });
+  };
+
+  // Get the active segment for drag overlay
+  const getActiveSegment = () => {
+    if (!activeId) return null;
+    return segments.find(segment => segment.id === activeId);
   };
 
   if (isLoading) {
@@ -253,31 +466,96 @@ const EpisodeEditor = ({ episodeId }) => {
             No segments yet. Add your first segment below.
           </Typography>
         ) : (
-          <Box sx={{ my: 2 }}>
-            {segments.map(segment => (
-              <SegmentItem
-                key={segment.id}
-                segment={segment}
-                episodeId={episodeId}
-                onDelete={handleSegmentDelete}
-                onUpdate={handleSegmentUpdate}
-                apiBaseUrl={API_URL}
-              />
-            ))}
-          </Box>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <Box sx={{ my: 2 }}>
+              {/* Add insert button at the top */}
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  mb: 2, 
+                  borderRadius: 1,
+                  border: '1px dashed #ccc',
+                  p: 1
+                }}
+              >
+                <IconButton 
+                  size="small" 
+                  onClick={(e) => handleOpenInsertMenu(e, 0)}
+                  color="primary"
+                >
+                  <AddIcon />
+                </IconButton>
+              </Box>
+              
+              <SortableContext 
+                items={segments.map(s => s.id)} 
+                strategy={verticalListSortingStrategy}
+              >
+                {segments.map((segment, index) => (
+                  <Box key={segment.id} sx={{ position: 'relative' }}>
+                    <SortableSegmentItem
+                      id={segment.id}
+                      segment={segment}
+                      episodeId={episodeId}
+                      onDelete={handleSegmentDelete}
+                      onUpdate={handleSegmentUpdate}
+                      apiBaseUrl={API_URL}
+                    />
+                    
+                    {/* Add insert button between segments */}
+                    <Box 
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        my: 1,
+                        borderRadius: 1,
+                        border: '1px dashed #ccc',
+                        p: 0.5
+                      }}
+                    >
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => handleOpenInsertMenu(e, index + 1)}
+                        color="primary"
+                      >
+                        <AddIcon />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                ))}
+              </SortableContext>
+              
+              <DragOverlay>
+                {activeId ? (
+                  <SegmentItem
+                    segment={getActiveSegment()}
+                    episodeId={episodeId}
+                    apiBaseUrl={API_URL}
+                    isDragging={true}
+                  />
+                ) : null}
+              </DragOverlay>
+            </Box>
+          </DndContext>
         )}
         
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
           <ButtonGroup variant="contained">
             <Button
               startIcon={<PersonIcon />}
-              onClick={handleAddHumanSegment}
+              onClick={() => handleAddHumanSegment()}
             >
               Add Human Segment
             </Button>
             <Button
               startIcon={<SmartToyIcon />}
-              onClick={handleAddBotSegment}
+              onClick={() => handleAddBotSegment()}
               color="secondary"
             >
               Add AI Segment
@@ -286,6 +564,32 @@ const EpisodeEditor = ({ episodeId }) => {
         </Box>
       </Paper>
       
+      {/* Insert Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleCloseInsertMenu}
+      >
+        <MenuItem 
+          onClick={() => {
+            handleCloseInsertMenu();
+            handleAddHumanSegment(insertPosition);
+          }}
+        >
+          <PersonIcon fontSize="small" sx={{ mr: 1 }} />
+          Insert Human Segment
+        </MenuItem>
+        <MenuItem 
+          onClick={() => {
+            handleCloseInsertMenu();
+            handleAddBotSegment(insertPosition);
+          }}
+        >
+          <SmartToyIcon fontSize="small" sx={{ mr: 1 }} />
+          Insert AI Segment
+        </MenuItem>
+      </Menu>
+      
       {/* Human Dialog */}
       <Dialog
         open={addHumanDialogOpen}
@@ -293,7 +597,9 @@ const EpisodeEditor = ({ episodeId }) => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Add Human Segment</DialogTitle>
+        <DialogTitle>
+          {insertPosition !== null ? 'Insert Human Segment' : 'Add Human Segment'}
+        </DialogTitle>
         <DialogContent>
           <AudioRecorder
             onAudioRecorded={handleAudioRecorded}
@@ -313,7 +619,9 @@ const EpisodeEditor = ({ episodeId }) => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Add AI Segment</DialogTitle>
+        <DialogTitle>
+          {insertPosition !== null ? 'Insert AI Segment' : 'Add AI Segment'}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ my: 2 }}>
             <Typography variant="subtitle1" gutterBottom>

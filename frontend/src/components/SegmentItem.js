@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -7,10 +7,12 @@ import {
   CircularProgress,
   IconButton,
   Typography,
+  Button,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import AudioPlayer from './AudioPlayer';
 import TextEditor from './TextEditor';
 import { updateSegment, deleteSegment, generateSpeech } from '../services/api';
@@ -20,17 +22,25 @@ const SegmentItem = ({
   episodeId, 
   onDelete, 
   onUpdate, 
-  apiBaseUrl 
+  apiBaseUrl,
+  dragHandleProps,
+  isDragging
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Add effect to handle external speech generation state
+  useEffect(() => {
+    setIsGenerating(segment.isGeneratingSpeech || false);
+  }, [segment.isGeneratingSpeech]);
 
   const handleTextSave = async (newText) => {
     setIsLoading(true);
     setError(null);
     
     try {
+      // First update just the text content
       const response = await updateSegment(episodeId, segment.id, {
         text_content: newText
       });
@@ -38,9 +48,22 @@ const SegmentItem = ({
       if (onUpdate) {
         onUpdate(response.data);
       }
-      // Automatically generate speech if this is a bot segment
+      
+      // For bot segments, regenerate audio automatically but without blocking
       if (segment.segment_type === 'bot') {
-        await handleGenerateSpeechWithText(newText);
+        // Update local state to show generating status
+        if (onUpdate) {
+          onUpdate({
+            ...response.data,
+            isGeneratingSpeech: true
+          });
+        }
+        
+        // Generate speech in the background
+        handleGenerateSpeechWithText(newText)
+          .catch(err => {
+            console.error('Background speech generation failed:', err);
+          });
       }
     } catch (err) {
       setError('Failed to update text');
@@ -53,24 +76,46 @@ const SegmentItem = ({
   // Helper to generate speech with the latest text
   const handleGenerateSpeechWithText = async (text) => {
     if (!text) return;
-    setIsGenerating(true);
-    setError(null);
+    
     try {
+      // Update state to show generation is in progress
+      setIsGenerating(true);
+      setError(null);
+      
       const outputPath = `/episodes/${episodeId}/segments/${segment.id}.mp3`;
       await generateSpeech(text, outputPath);
+      
       // Update segment with new audio path
       const updatedSegment = {
         ...segment,
         audio_path: outputPath,
-        text_content: text
+        text_content: text,
+        isGeneratingSpeech: false
       };
-      const response = await updateSegment(episodeId, segment.id, updatedSegment);
+      
+      // Only update the audio_path in the database
+      const response = await updateSegment(episodeId, segment.id, {
+        audio_path: outputPath
+      });
+      
+      // Notify parent with combined local and server data
       if (onUpdate) {
-        onUpdate(response.data);
+        onUpdate({
+          ...response.data,
+          isGeneratingSpeech: false
+        });
       }
     } catch (err) {
       setError('Failed to generate speech');
       console.error('Error generating speech:', err);
+      
+      // Update state to remove loading state even if generation fails
+      if (onUpdate) {
+        onUpdate({
+          ...segment,
+          isGeneratingSpeech: false
+        });
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -79,31 +124,47 @@ const SegmentItem = ({
   const handleGenerateSpeech = async () => {
     if (!segment.text_content) return;
     
-    setIsGenerating(true);
-    setError(null);
-    
     try {
+      setIsGenerating(true);
+      setError(null);
+      
       // For bot segments, generate speech from text
       if (segment.segment_type === 'bot') {
-        const outputPath = `/episodes/${episodeId}/segments/${segment.id}.mp3`;
+        // Update UI to show generating state
+        if (onUpdate) {
+          onUpdate({
+            ...segment,
+            isGeneratingSpeech: true
+          });
+        }
         
+        const outputPath = `/episodes/${episodeId}/segments/${segment.id}.mp3`;
         await generateSpeech(segment.text_content, outputPath);
         
         // Update segment with new audio path
-        const updatedSegment = {
-          ...segment,
+        const response = await updateSegment(episodeId, segment.id, {
           audio_path: outputPath
-        };
+        });
         
-        const response = await updateSegment(episodeId, segment.id, updatedSegment);
-        
+        // Notify parent with combined data
         if (onUpdate) {
-          onUpdate(response.data);
+          onUpdate({
+            ...response.data,
+            isGeneratingSpeech: false
+          });
         }
       }
     } catch (err) {
       setError('Failed to generate speech');
       console.error('Error generating speech:', err);
+      
+      // Update state to remove loading state even if generation fails
+      if (onUpdate) {
+        onUpdate({
+          ...segment,
+          isGeneratingSpeech: false
+        });
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -143,7 +204,18 @@ const SegmentItem = ({
   };
 
   return (
-    <Card sx={{ mb: 2, position: 'relative' }}>
+    <Card sx={{ 
+      mb: 0, 
+      position: 'relative',
+      transition: 'box-shadow 0.2s ease-in-out',
+      '&:hover': {
+        boxShadow: 3,
+        '& .drag-handle': {
+          opacity: 1,
+        }
+      },
+      boxShadow: isDragging ? 6 : 1,
+    }}>
       {isLoading && (
         <Box
           sx={{
@@ -163,14 +235,46 @@ const SegmentItem = ({
         </Box>
       )}
       
-      <CardContent>
+      {/* Drag handle indicator */}
+      <Box 
+        className="drag-handle"
+        sx={{ 
+          position: 'absolute', 
+          left: 0, 
+          top: 0, 
+          bottom: 0, 
+          width: '20px', 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0,0,0,0.03)',
+          opacity: 0.3,
+          transition: 'opacity 0.2s ease',
+          cursor: 'grab',
+          '&:active': {
+            cursor: 'grabbing',
+          }
+        }}
+        {...dragHandleProps}
+      >
+        <DragIndicatorIcon fontSize="small" color="action" />
+      </Box>
+      
+      <CardContent sx={{ pl: '24px' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-          <Chip
-            icon={segment.segment_type === 'human' ? <PersonIcon /> : <SmartToyIcon />}
-            label={segment.segment_type === 'human' ? 'Human' : 'AI'}
-            color={segment.segment_type === 'human' ? 'primary' : 'secondary'}
-            size="small"
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Chip
+              icon={segment.segment_type === 'human' ? <PersonIcon /> : <SmartToyIcon />}
+              label={segment.segment_type === 'human' ? 'Human' : 'AI'}
+              color={segment.segment_type === 'human' ? 'primary' : 'secondary'}
+              size="small"
+              sx={{ mr: 1 }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              {`#${segment.order_index + 1}`}
+            </Typography>
+          </Box>
           
           <IconButton
             size="small"
@@ -193,14 +297,32 @@ const SegmentItem = ({
           }
         />
         
-        {segment.audio_path && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Audio
-            </Typography>
+        {/* For existing audio path or generating speech */}
+        <Box sx={{ mt: 2, position: 'relative' }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Audio
+          </Typography>
+          
+          {isGenerating || segment.isGeneratingSpeech ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', height: '80px', my: 1 }}>
+              <CircularProgress size={24} sx={{ mr: 2 }} />
+              <Typography variant="body2">Generating audio...</Typography>
+            </Box>
+          ) : segment.audio_path ? (
             <AudioPlayer audioUrl={getAudioUrl()} />
-          </Box>
-        )}
+          ) : segment.segment_type === 'bot' && segment.text_content ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
+              <Button 
+                variant="outlined" 
+                size="small"
+                onClick={handleGenerateSpeech}
+                startIcon={<SmartToyIcon />}
+              >
+                Generate Audio
+              </Button>
+            </Box>
+          ) : null}
+        </Box>
         
         {error && (
           <Typography color="error" sx={{ mt: 2 }}>
