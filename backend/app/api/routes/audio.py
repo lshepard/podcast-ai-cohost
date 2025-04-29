@@ -70,8 +70,14 @@ async def upload_audio(
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
     
-    # Update segment with the file path
+    # Update segment with the file paths
     db_segment.raw_audio_path = file_path
+    
+    # Also set the audio_path to be the same as raw_audio_path for human segments
+    # This ensures the audio can be played back in the UI
+    relative_path = f"/episodes/{episode_id}/segments/{segment_id}_raw.wav"
+    db_segment.audio_path = relative_path
+    
     db.commit()
     
     # Transcribe the audio if it's a human segment

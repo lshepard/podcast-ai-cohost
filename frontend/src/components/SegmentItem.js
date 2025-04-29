@@ -130,13 +130,16 @@ const SegmentItem = ({
   const getAudioUrl = () => {
     if (!segment.audio_path) return null;
     
-    // Check if it's a full URL or a relative path
+    // Check if it's a full URL
     if (segment.audio_path.startsWith('http')) {
       return segment.audio_path;
     }
     
-    // Construct URL from API base and path
-    return `${apiBaseUrl}${segment.audio_path}`;
+    // Get the base URL without the /api part
+    const baseUrl = apiBaseUrl.replace('/api', '');
+    
+    // Return the full URL to the audio file
+    return `${baseUrl}${segment.audio_path}`;
   };
 
   return (

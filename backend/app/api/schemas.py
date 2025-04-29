@@ -47,6 +47,7 @@ class SegmentCreate(SegmentBase):
 class SegmentUpdate(BaseModel):
     text_content: Optional[str] = None
     order_index: Optional[int] = None
+    audio_path: Optional[str] = None
 
 
 class Segment(SegmentBase):

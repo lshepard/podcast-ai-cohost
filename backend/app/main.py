@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 from app.api.routes import audio, episodes, generate, segments
 from app.core.config import settings
@@ -27,6 +29,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount the episodes directory as a static file directory
+# This makes files accessible without authentication at /episodes/...
+os.makedirs(settings.EPISODES_DIR, exist_ok=True)
+app.mount("/episodes", StaticFiles(directory=str(settings.EPISODES_DIR)), name="episodes")
 
 # Include API routers
 app.include_router(episodes.router, prefix=settings.API_V1_STR)

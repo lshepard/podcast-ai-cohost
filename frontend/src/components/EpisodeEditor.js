@@ -28,7 +28,8 @@ import {
   createSegment, 
   updateSegment, 
   uploadAudio, 
-  generateText 
+  generateText,
+  generateSpeech
 } from '../services/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
@@ -159,7 +160,22 @@ const EpisodeEditor = ({ episodeId }) => {
         text_content: botResponse
       };
       
-      await createSegment(episodeId, newSegmentData);
+      const response = await createSegment(episodeId, newSegmentData);
+      const newSegment = response.data;
+      
+      // Generate speech for the new bot segment
+      try {
+        const outputPath = `/episodes/${episodeId}/segments/${newSegment.id}.mp3`;
+        await generateSpeech(botResponse, outputPath);
+        
+        // Update the segment with the audio path
+        await updateSegment(episodeId, newSegment.id, {
+          audio_path: outputPath
+        });
+      } catch (speechErr) {
+        console.error('Error generating speech for new bot segment:', speechErr);
+        // Continue with the flow even if speech generation fails
+      }
       
       // Refresh segments
       await fetchEpisodeData();

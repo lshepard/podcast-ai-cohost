@@ -102,6 +102,8 @@ def update_segment(
         db_segment.text_content = segment.text_content
     if segment.order_index is not None:
         db_segment.order_index = segment.order_index
+    if segment.audio_path is not None:
+        db_segment.audio_path = segment.audio_path
     
     db.commit()
     db.refresh(db_segment)
