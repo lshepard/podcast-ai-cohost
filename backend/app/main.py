@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import audio, episodes, generate, segments
 from app.core.config import settings
 from app.db.session import init_db
+from app.admin import mount_admin
 
 # Initialize the database
 init_db()
@@ -15,6 +16,8 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
+
+mount_admin(app)
 
 # Configure CORS
 app.add_middleware(

@@ -18,6 +18,8 @@ dependencies = [
     "assemblyai>=0.18.0",
     "httpx>=0.24.1",
     "tenacity>=8.2.3",
+    "aiosqlite>=0.21.0",
+    "sqladmin>=0.20.1",
 ]
 
 [project.optional-dependencies]
