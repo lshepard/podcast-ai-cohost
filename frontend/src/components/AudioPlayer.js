@@ -1,137 +1,66 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, memo } from 'react';
 import { Box, IconButton, CircularProgress } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
-import WaveSurfer from 'wavesurfer.js';
 
-const AudioPlayer = ({ audioUrl, onReady }) => {
-  const waveformRef = useRef(null);
-  const wavesurferRef = useRef(null);
+const AudioPlayer = ({ audioUrl, onReady, compact = false }) => {
+  const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const abortControllerRef = useRef(null);
 
   useEffect(() => {
-    let isMounted = true;
-    abortControllerRef.current = new AbortController();
-    
-    // Clear any previous instance
-    if (wavesurferRef.current) {
-      try {
-        wavesurferRef.current.destroy();
-      } catch (e) {
-        console.error("Error destroying previous WaveSurfer instance:", e);
-      }
-      wavesurferRef.current = null;
-    }
-
-    if (!audioUrl || !waveformRef.current) return;
-
-    setIsLoading(true);
+    // Reset state when url changes
     setIsLoaded(false);
-
-    // Delay initialization to avoid race conditions
-    const initTimeout = setTimeout(() => {
-      try {
-        if (!isMounted) return;
-        
-        // Create WaveSurfer instance with options
-        const wavesurfer = WaveSurfer.create({
-          container: waveformRef.current,
-          waveColor: '#4a9eff',
-          progressColor: '#1e5180',
-          cursorColor: '#333',
-          barWidth: 2,
-          barRadius: 3,
-          responsive: true,
-          height: 80,
-          normalize: true,
-          backend: 'MediaElement' // Try using MediaElement backend for better stability
-        });
-        
-        wavesurferRef.current = wavesurfer;
-        
-        // Set up event handlers
-        wavesurfer.on('ready', () => {
-          if (isMounted) {
-            setIsLoaded(true);
-            setIsLoading(false);
-            if (onReady) onReady(wavesurfer.getDuration());
-          }
-        });
-        
-        wavesurfer.on('error', (err) => {
-          console.error('WaveSurfer error:', err);
-          if (isMounted) {
-            setIsLoading(false);
-          }
-        });
-        
-        wavesurfer.on('play', () => {
-          if (isMounted) setIsPlaying(true);
-        });
-        
-        wavesurfer.on('pause', () => {
-          if (isMounted) setIsPlaying(false);
-        });
-        
-        wavesurfer.on('finish', () => {
-          if (isMounted) setIsPlaying(false);
-        });
-        
-        // Delayed loading to avoid abort errors
-        setTimeout(() => {
-          if (isMounted && wavesurferRef.current) {
-            try {
-              wavesurferRef.current.load(audioUrl);
-            } catch (err) {
-              console.error('Error loading audio:', err);
-              if (isMounted) setIsLoading(false);
-            }
-          }
-        }, 50);
-      } catch (error) {
-        console.error("Error initializing WaveSurfer:", error);
-        if (isMounted) setIsLoading(false);
-      }
-    }, 100);
+    setIsPlaying(false);
+    setIsLoading(true);
     
-    // Cleanup function
-    return () => {
-      isMounted = false;
-      clearTimeout(initTimeout);
+    // If audio element exists, load the new URL
+    if (audioRef.current) {
+      const audio = audioRef.current;
       
-      // Cancel any pending operations
-      if (abortControllerRef.current) {
-        try {
-          abortControllerRef.current.abort();
-        } catch (e) {
-          console.error("Error aborting:", e);
-        }
-      }
+      const handleCanPlayThrough = () => {
+        setIsLoaded(true);
+        setIsLoading(false);
+        if (onReady) onReady(audio.duration);
+      };
       
-      // Wait a bit before destroying WaveSurfer to prevent abort errors
-      setTimeout(() => {
-        if (wavesurferRef.current) {
-          try {
-            wavesurferRef.current.destroy();
-          } catch (e) {
-            console.error("Error destroying WaveSurfer:", e);
-          }
-          wavesurferRef.current = null;
-        }
-      }, 50);
-    };
+      const handleEnded = () => {
+        setIsPlaying(false);
+      };
+      
+      const handleError = () => {
+        console.error('Error loading audio');
+        setIsLoading(false);
+      };
+      
+      // Add event listeners
+      audio.addEventListener('canplaythrough', handleCanPlayThrough);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+      
+      // Load the audio
+      audio.load();
+      
+      // Clean up
+      return () => {
+        audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('error', handleError);
+      };
+    }
   }, [audioUrl, onReady]);
 
   const togglePlayPause = () => {
-    if (wavesurferRef.current && isLoaded) {
-      try {
-        wavesurferRef.current.playPause();
-      } catch (e) {
-        console.error("Error toggling play/pause:", e);
-      }
+    if (!audioRef.current || !isLoaded) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play()
+        .then(() => setIsPlaying(true))
+        .catch(err => console.error('Error playing audio:', err));
     }
   };
 
@@ -140,21 +69,25 @@ const AudioPlayer = ({ audioUrl, onReady }) => {
   }
 
   return (
-    <Box sx={{ width: '100%', mt: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <IconButton 
-          onClick={togglePlayPause} 
-          sx={{ mr: 1 }}
-          disabled={!isLoaded || isLoading}
-        >
-          {isLoading ? <CircularProgress size={24} /> : 
-           isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-        </IconButton>
-        
-        <Box ref={waveformRef} sx={{ flex: 1 }} />
-      </Box>
+    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <IconButton 
+        onClick={togglePlayPause} 
+        disabled={!isLoaded || isLoading}
+        size={compact ? "small" : "medium"}
+      >
+        {isLoading ? <CircularProgress size={compact ? 18 : 24} /> : 
+         isPlaying ? <PauseIcon fontSize={compact ? "small" : "medium"} /> : 
+                    <PlayArrowIcon fontSize={compact ? "small" : "medium"} />}
+      </IconButton>
+      
+      <audio 
+        ref={audioRef}
+        src={audioUrl}
+        preload="auto"
+        style={{ display: 'none' }}
+      />
     </Box>
   );
 };
 
-export default AudioPlayer; 
+export default memo(AudioPlayer); 

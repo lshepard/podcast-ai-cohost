@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Button,
@@ -42,6 +42,7 @@ import SegmentItem from './SegmentItem';
 import SortableSegmentItem from './SortableSegmentItem';
 import AudioRecorder from './AudioRecorder';
 import TextEditor from './TextEditor';
+import EditDialog from './EditDialog';
 import { 
   getEpisode, 
   getSegments, 
@@ -66,6 +67,10 @@ const EpisodeEditor = ({ episodeId }) => {
   const [addBotDialogOpen, setAddBotDialogOpen] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   
+  // Edit Dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [currentEditSegment, setCurrentEditSegment] = useState(null);
+  
   // Insert segment menu
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [insertPosition, setInsertPosition] = useState(null);
@@ -76,17 +81,47 @@ const EpisodeEditor = ({ episodeId }) => {
   const [botResponse, setBotResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // Set up DnD sensors
+  // Set up DnD sensors with better movement thresholds
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+        delay: 100,
+        tolerance: 5
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Create a stable reference to segments for event handlers
+  const segmentsRef = useRef(segments);
+  
+  // Update the ref whenever segments change
+  useEffect(() => {
+    segmentsRef.current = segments;
+  }, [segments]);
+
+  // Memoize the edit segment handler
+  const handleEditSegment = useCallback((event) => {
+    const segmentId = event.detail.segmentId;
+    const segment = segmentsRef.current.find(s => s.id === segmentId);
+    if (segment) {
+      setCurrentEditSegment(segment);
+      setEditDialogOpen(true);
+    }
+  }, []);
+  
+  // Set up event listeners separately from data fetching
+  useEffect(() => {
+    // Add event listener for edit segment events
+    document.addEventListener('editSegment', handleEditSegment);
+    
+    return () => {
+      document.removeEventListener('editSegment', handleEditSegment);
+    };
+  }, [handleEditSegment]);
 
   useEffect(() => {
     fetchEpisodeData();
@@ -303,23 +338,24 @@ const EpisodeEditor = ({ episodeId }) => {
     }
   };
 
-  const handleSegmentUpdate = (updatedSegment) => {
-    setSegments(segments.map(seg => 
+  // Memoize segment handlers to prevent unnecessary re-renders
+  const handleSegmentUpdate = useCallback((updatedSegment) => {
+    setSegments(prevSegments => prevSegments.map(seg => 
       seg.id === updatedSegment.id.toString()
         ? { ...updatedSegment, id: updatedSegment.id.toString() } 
         : seg
     ));
-  };
+  }, []);
 
-  const handleSegmentDelete = (segmentId) => {
-    setSegments(segments.filter(seg => seg.id !== segmentId.toString()));
+  const handleSegmentDelete = useCallback((segmentId) => {
+    setSegments(prevSegments => prevSegments.filter(seg => seg.id !== segmentId.toString()));
     showNotification('Segment deleted successfully', 'success');
-  };
+  }, []);
 
-  // Handle drag start
-  const handleDragStart = (event) => {
+  // Stabilize the DnD context with memoized callbacks
+  const handleDragStart = useCallback((event) => {
     setActiveId(event.active.id);
-  };
+  }, []);
 
   // Handle drag end with dnd-kit
   const handleDragEnd = async (event) => {
@@ -426,6 +462,44 @@ const EpisodeEditor = ({ episodeId }) => {
     return segments.find(segment => segment.id === activeId);
   };
 
+  // Handle saving edited segment text
+  const handleSaveEditedSegment = async (newText) => {
+    if (!currentEditSegment) return;
+    
+    try {
+      const segmentId = currentEditSegment.id;
+      
+      // Update UI immediately for better UX
+      setSegments(prevSegments => prevSegments.map(seg => 
+        seg.id === segmentId ? { ...seg, text_content: newText } : seg
+      ));
+      
+      // Close dialog immediately
+      setEditDialogOpen(false);
+      
+      // Update in database
+      const response = await updateSegment(episodeId, segmentId, {
+        text_content: newText
+      });
+      
+      // For bot segments, regenerate audio
+      if (currentEditSegment.segment_type === 'bot') {
+        // Mark as generating in UI
+        setSegments(prevSegments => prevSegments.map(seg => 
+          seg.id === segmentId ? { ...seg, isGeneratingSpeech: true } : seg
+        ));
+        
+        // Generate audio in background
+        generateAudioForSegment(segmentId, newText);
+      }
+      
+      showNotification('Segment updated successfully', 'success');
+    } catch (err) {
+      console.error('Error updating segment:', err);
+      showNotification('Failed to update segment', 'error');
+    }
+  };
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -478,10 +552,10 @@ const EpisodeEditor = ({ episodeId }) => {
                 sx={{ 
                   display: 'flex', 
                   justifyContent: 'center', 
-                  mb: 2, 
+                  mb: 1, 
                   borderRadius: 1,
                   border: '1px dashed #ccc',
-                  p: 1
+                  p: 0.5
                 }}
               >
                 <IconButton 
@@ -513,18 +587,19 @@ const EpisodeEditor = ({ episodeId }) => {
                       sx={{ 
                         display: 'flex', 
                         justifyContent: 'center', 
-                        my: 1,
+                        my: 0.5,
                         borderRadius: 1,
-                        border: '1px dashed #ccc',
-                        p: 0.5
+                        border: '1px dashed #eee',
+                        p: 0.2
                       }}
                     >
                       <IconButton 
                         size="small" 
                         onClick={(e) => handleOpenInsertMenu(e, index + 1)}
                         color="primary"
+                        sx={{ padding: '2px' }}
                       >
-                        <AddIcon />
+                        <AddIcon fontSize="small" />
                       </IconButton>
                     </Box>
                   </Box>
@@ -545,23 +620,6 @@ const EpisodeEditor = ({ episodeId }) => {
           </DndContext>
         )}
         
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-          <ButtonGroup variant="contained">
-            <Button
-              startIcon={<PersonIcon />}
-              onClick={() => handleAddHumanSegment()}
-            >
-              Add Human Segment
-            </Button>
-            <Button
-              startIcon={<SmartToyIcon />}
-              onClick={() => handleAddBotSegment()}
-              color="secondary"
-            >
-              Add AI Segment
-            </Button>
-          </ButtonGroup>
-        </Box>
       </Paper>
       
       {/* Insert Menu */}
@@ -670,6 +728,15 @@ const EpisodeEditor = ({ episodeId }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Edit Dialog */}
+      <EditDialog
+        open={editDialogOpen}
+        segment={currentEditSegment}
+        onClose={() => setEditDialogOpen(false)}
+        onSave={handleSaveEditedSegment}
+        isGenerating={false}
+      />
       
       {/* Notification */}
       <Snackbar

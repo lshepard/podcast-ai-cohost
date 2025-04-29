@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
   Box,
   Card,
@@ -7,14 +7,12 @@ import {
   CircularProgress,
   IconButton,
   Typography,
-  Button,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import AudioPlayer from './AudioPlayer';
-import TextEditor from './TextEditor';
 import { updateSegment, deleteSegment, generateSpeech } from '../services/api';
 
 const SegmentItem = ({ 
@@ -261,8 +259,8 @@ const SegmentItem = ({
         <DragIndicatorIcon fontSize="small" color="action" />
       </Box>
       
-      <CardContent sx={{ pl: '24px' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+      <CardContent sx={{ pl: '24px', py: 1.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Chip
               icon={segment.segment_type === 'human' ? <PersonIcon /> : <SmartToyIcon />}
@@ -276,56 +274,51 @@ const SegmentItem = ({
             </Typography>
           </Box>
           
-          <IconButton
-            size="small"
-            color="error"
-            onClick={handleDeleteSegment}
-            disabled={isLoading}
-          >
-            <DeleteIcon />
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {segment.audio_path && !isGenerating && (
+              <AudioPlayer 
+                audioUrl={getAudioUrl()} 
+                compact={true}
+              />
+            )}
+            {isGenerating && (
+              <CircularProgress size={18} sx={{ mr: 1 }} />
+            )}
+            <IconButton
+              size="small"
+              color="error"
+              onClick={handleDeleteSegment}
+              disabled={isLoading}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
         
-        <TextEditor
-          text={segment.text_content}
-          onSave={handleTextSave}
-          readOnly={false}
-          title={segment.segment_type === 'human' ? 'Transcription' : 'AI Response'}
-          isGenerating={isGenerating}
-          onGenerateRequest={
-            segment.segment_type === 'bot' && !segment.text_content ? handleGenerateSpeech : undefined
-          }
-        />
-        
-        {/* For existing audio path or generating speech */}
-        <Box sx={{ mt: 2, position: 'relative' }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Audio
+        <Box sx={{ mt: 0, px: 0.5 }}>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              whiteSpace: 'pre-wrap',
+              minHeight: '30px',
+              backgroundColor: '#f5f5f5',
+              p: 1.5,
+              borderRadius: 1,
+              fontSize: '0.95rem',
+              lineHeight: 1.5
+            }}
+            onClick={() => {
+              // Open the text editor when clicking on the text
+              const customEvent = new CustomEvent('editSegment', { detail: { segmentId: segment.id } });
+              document.dispatchEvent(customEvent);
+            }}
+          >
+            {segment.text_content || 'No text available.'}
           </Typography>
-          
-          {isGenerating || segment.isGeneratingSpeech ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', height: '80px', my: 1 }}>
-              <CircularProgress size={24} sx={{ mr: 2 }} />
-              <Typography variant="body2">Generating audio...</Typography>
-            </Box>
-          ) : segment.audio_path ? (
-            <AudioPlayer audioUrl={getAudioUrl()} />
-          ) : segment.segment_type === 'bot' && segment.text_content ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', my: 1 }}>
-              <Button 
-                variant="outlined" 
-                size="small"
-                onClick={handleGenerateSpeech}
-                startIcon={<SmartToyIcon />}
-              >
-                Generate Audio
-              </Button>
-            </Box>
-          ) : null}
         </Box>
         
         {error && (
-          <Typography color="error" sx={{ mt: 2 }}>
+          <Typography color="error" sx={{ mt: 1, fontSize: '0.8rem' }}>
             {error}
           </Typography>
         )}
@@ -334,4 +327,5 @@ const SegmentItem = ({
   );
 };
 
-export default SegmentItem; 
+// Export a memoized version to prevent unnecessary re-renders
+export default memo(SegmentItem); 

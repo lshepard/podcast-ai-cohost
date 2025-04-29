@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import SegmentItem from './SegmentItem';
@@ -35,4 +35,4 @@ const SortableSegmentItem = ({ id, segment, episodeId, onDelete, onUpdate, apiBa
   );
 };
 
-export default SortableSegmentItem; 
+export default memo(SortableSegmentItem); 
