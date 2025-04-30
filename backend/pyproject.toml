@@ -21,6 +21,7 @@ dependencies = [
     "aiosqlite>=0.21.0",
     "sqladmin>=0.20.1",
     "crawl4ai>=0.6.2",
+    "llama-parse>=0.6.20",
 ]
 
 [project.optional-dependencies]
