@@ -57,6 +57,7 @@ import {
 } from '../services/api';
 import EpisodeSources from './EpisodeSources';
 import NotesEditor from './NotesEditor';
+import EpisodeWaveform from './EpisodeWaveform';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -758,6 +759,8 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
             )}
           </Box>
         </Paper>
+
+        <EpisodeWaveform segments={segments} />
 
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>
