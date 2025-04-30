@@ -23,6 +23,7 @@ class SourceBase(BaseModel):
     summary: Optional[str] = None
     url: Optional[str] = None
     file_path: Optional[str] = None
+    token_count: Optional[int] = None
 
 
 class SourceCreate(SourceBase):
@@ -35,6 +36,7 @@ class SourceUpdate(BaseModel):
     summary: Optional[str] = None
     url: Optional[str] = None
     file_path: Optional[str] = None
+    token_count: Optional[int] = None
 
 
 class Source(SourceBase):
@@ -50,6 +52,7 @@ class Source(SourceBase):
 class EpisodeBase(BaseModel):
     title: str
     description: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class EpisodeCreate(EpisodeBase):
@@ -58,6 +61,8 @@ class EpisodeCreate(EpisodeBase):
 
 class EpisodeUpdate(EpisodeBase):
     title: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class Episode(EpisodeBase):

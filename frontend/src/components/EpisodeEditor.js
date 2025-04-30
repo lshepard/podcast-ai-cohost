@@ -23,6 +23,9 @@ import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import EditIcon from '@mui/icons-material/Edit';
 import {
   DndContext,
   closestCenter,
@@ -53,10 +56,11 @@ import {
   generateSpeech
 } from '../services/api';
 import EpisodeSources from './EpisodeSources';
+import NotesEditor from './NotesEditor';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
-const EpisodeEditor = ({ episodeId }) => {
+const EpisodeEditor = ({ episodeId, onSave }) => {
   const [episode, setEpisode] = useState(null);
   const [segments, setSegments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -508,6 +512,88 @@ const EpisodeEditor = ({ episodeId }) => {
     }
   };
 
+  const handleSaveNotes = async (notes) => {
+    try {
+      const response = await fetch(`${API_URL}/episodes/${episodeId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save notes');
+      }
+
+      const updatedEpisode = await response.json();
+      onSave(updatedEpisode);
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      // Handle error (e.g., show notification)
+    }
+  };
+
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+
+  useEffect(() => {
+    if (episode) {
+      setEditedTitle(episode.title || '');
+      setEditedDescription(episode.description || '');
+    }
+  }, [episode]);
+
+  const handleSaveTitle = async () => {
+    try {
+      const response = await fetch(`${API_URL}/episodes/${episodeId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title: editedTitle }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save title');
+      }
+
+      const updatedEpisode = await response.json();
+      onSave(updatedEpisode);
+      setIsEditingTitle(false);
+    } catch (error) {
+      console.error('Error saving title:', error);
+      showNotification('Failed to save title', 'error');
+    }
+  };
+
+  const handleSaveDescription = async () => {
+    try {
+      const response = await fetch(`${API_URL}/episodes/${episodeId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description: editedDescription }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save description');
+      }
+
+      const updatedEpisode = await response.json();
+      onSave(updatedEpisode);
+      setIsEditingDescription(false);
+    } catch (error) {
+      console.error('Error saving description:', error);
+      showNotification('Failed to save description', 'error');
+    }
+  };
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -526,36 +612,161 @@ const EpisodeEditor = ({ episodeId }) => {
 
   return (
     <Box>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          {episode?.title}
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          {episode?.description}
-        </Typography>
-      </Box>
-
-      <Box sx={{ mb: 4 }}>
-        <EpisodeSources 
-          episodeId={episodeId} 
-          episodeSources={episode?.sources || []} 
-          onSourcesUpdate={fetchEpisode}
-        />
-      </Box>
-
       <Container maxWidth="md">
-        <Paper sx={{ p: 3, mt: 3 }}>
-          <Typography variant="h4" gutterBottom>
-            {episode?.title || 'Episode Editor'}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          {isEditingTitle ? (
+            <Box sx={{ mb: 2 }}>
+              <TextField
+                fullWidth
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                variant="outlined"
+                size="large"
+                sx={{
+                  '& .MuiInputBase-input': {
+                    fontSize: '2.125rem',
+                    fontWeight: 500,
+                  },
+                }}
+              />
+              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setEditedTitle(episode?.title || '');
+                    setIsEditingTitle(false);
+                  }}
+                  sx={{ mr: 1 }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleSaveTitle}
+                >
+                  Save Title
+                </Button>
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h4" gutterBottom>
+                {episode?.title || 'Episode Editor'}
+              </Typography>
+              <IconButton
+                onClick={() => setIsEditingTitle(true)}
+                size="small"
+                sx={{ ml: 1 }}
+              >
+                <EditIcon />
+              </IconButton>
+            </Box>
+          )}
+          
+          <Box sx={{ mb: 2 }}>
+            <Button
+              onClick={() => setDetailsExpanded(!detailsExpanded)}
+              endIcon={detailsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ mb: 1 }}
+            >
+              {detailsExpanded ? 'Hide Details' : 'Show Details'}
+            </Button>
+            
+            {detailsExpanded && (
+              <Box sx={{ pl: 2 }}>
+                <Paper sx={{ p: 3, mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">
+                      Description
+                    </Typography>
+                    <IconButton
+                      onClick={() => setIsEditingDescription(true)}
+                      size="small"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Box>
+                  {isEditingDescription ? (
+                    <Box>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        variant="outlined"
+                      />
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => {
+                            setEditedDescription(episode?.description || '');
+                            setIsEditingDescription(false);
+                          }}
+                          sx={{ mr: 1 }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={handleSaveDescription}
+                        >
+                          Save Description
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary" paragraph>
+                      {episode?.description || 'No description available'}
+                    </Typography>
+                  )}
+                </Paper>
+
+                <Paper sx={{ p: 3, mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">
+                      Notes and Script
+                    </Typography>
+                    <IconButton
+                      onClick={() => setIsEditingNotes(true)}
+                      size="small"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Box>
+                  <NotesEditor
+                    notes={episode?.notes}
+                    onSave={handleSaveNotes}
+                    isEditing={isEditingNotes}
+                    onEditChange={setIsEditingNotes}
+                  />
+                </Paper>
+
+                <Paper sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">
+                      Sources
+                    </Typography>
+                  </Box>
+                  <EpisodeSources 
+                    episodeId={episodeId} 
+                    episodeSources={episode?.sources || []} 
+                    onSourcesUpdate={fetchEpisode}
+                  />
+                </Paper>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            Segments
           </Typography>
           
           <Divider sx={{ my: 2 }} />
           
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Segments
-            </Typography>
-            
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -640,9 +851,7 @@ const EpisodeEditor = ({ episodeId }) => {
                 </DragOverlay>
               </Box>
             </DndContext>
-            
           </Box>
-          
         </Paper>
         
         {/* Insert Menu */}

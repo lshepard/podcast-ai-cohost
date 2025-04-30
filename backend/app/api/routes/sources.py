@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.db import models
 from app.db.session import get_db
 from app.lib.web import process_web_source
+from app.lib.token_counter import count_tokens
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -52,7 +53,12 @@ async def create_source(
                 source.title = result.get('title', source.url)
         
         # Create the source
-        db_source = models.Source(**source.model_dump())
+        source_dict = source.model_dump()
+        # Count tokens if content is available
+        if source_dict.get('content'):
+            source_dict['token_count'] = count_tokens(source_dict['content'])
+        
+        db_source = models.Source(**source_dict)
         db.add(db_source)
         db.commit()
         db.refresh(db_source)
@@ -104,7 +110,13 @@ async def update_source(
     if db_source is None:
         raise HTTPException(status_code=404, detail="Source not found")
     
-    for field, value in source.model_dump(exclude_unset=True).items():
+    update_data = source.model_dump(exclude_unset=True)
+    
+    # Count tokens if content is being updated
+    if 'content' in update_data:
+        update_data['token_count'] = count_tokens(update_data['content'])
+    
+    for field, value in update_data.items():
         setattr(db_source, field, value)
     
     db.commit()

@@ -48,12 +48,14 @@ async def generate_response(prompt: str, history: List[Dict] = None) -> str:
         raise Exception(f"Error generating text: {str(e)}")
 
 
-def prepare_podcast_context(episode_title: str, episode_context: str = None) -> str:
+def prepare_podcast_context(episode_title: str, episode_context: str = None, episode_notes: str = None, sources: list = None) -> str:
     """Prepare context for the podcast generation.
     
     Args:
         episode_title: Title of the episode
         episode_context: Additional context for the episode
+        episode_notes: Additional notes, script, and important info for the episode
+        sources: List of sources attached to the episode
         
     Returns:
         Formatted context string
@@ -65,7 +67,25 @@ Use natural transitions and avoid phrases like "As an AI" or similar robotic lan
 """
     
     if episode_context:
-        context += f"\nAdditional context for this episode: {episode_context}"
+        context += f"\nEpisode Description: {episode_context}"
+    
+    if episode_notes:
+        context += f"\n\nEpisode Notes and Script:\n{episode_notes}"
+    
+    # Add source context if available
+    if sources:
+        context += "\n\nResearch Sources and Background Information:\n"
+        for source in sources:
+            source_info = f"\nSource: {source.title}"
+            if source.source_type:
+                source_info += f" (Type: {source.source_type.value})"
+            if source.url:
+                source_info += f"\nURL: {source.url}"
+            if source.summary:
+                source_info += f"\nSummary: {source.summary}"
+            if source.content:
+                source_info += f"\nFull Content:\n{source.content}"
+            context += source_info + "\n"
     
     return context 
 

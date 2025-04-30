@@ -39,6 +39,7 @@ class Source(Base):
     summary = Column(Text, nullable=True)  # LLM-generated summary
     url = Column(String(512), nullable=True)  # For web sources
     file_path = Column(String(512), nullable=True)  # For PDF sources
+    token_count = Column(Integer, nullable=True)  # Number of tokens in content
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -52,6 +53,7 @@ class Episode(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), index=True)
     description = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)  # Additional context, script, and important info for the episode
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

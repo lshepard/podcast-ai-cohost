@@ -11,7 +11,7 @@ class SegmentAdmin(ModelView, model=Segment):
 
 class SourceAdmin(ModelView, model=Source):
     column_list = [Source.id, Source.title, Source.source_type, Source.url, 
-                  Source.file_path, Source.created_at, Source.updated_at]
+                  Source.file_path, Source.token_count, Source.created_at, Source.updated_at]
 
 def mount_admin(app):
     admin = Admin(app, engine)

@@ -34,16 +34,13 @@ async def generate_text(
         .all()
     )
     
-    # Prepare conversation context
-    context = prepare_podcast_context(db_episode.title, db_episode.description)
-    
-    # Add source context if available
-    if db_episode.sources:
-        source_context = "\n\nRelevant research and sources:\n"
-        for source in db_episode.sources:
-            if source.content:
-                source_context += f"\nSource: {source.title}\n{source.content}\n"
-        context += source_context
+    # Prepare conversation context with all sources and notes
+    context = prepare_podcast_context(
+        db_episode.title, 
+        db_episode.description,
+        db_episode.notes,
+        db_episode.sources
+    )
     
     # Prepare conversation history from previous segments
     history = []
@@ -57,13 +54,12 @@ async def generate_text(
         history = request.history
     
     # Generate response
-    success, message, generated_text = generate_response(
-        prompt=f"{context}\n\n{request.prompt}" if context else request.prompt,
-        history=history,
-    )
-    
-    return {
-        "success": success,
-        "message": message,
-        "text": generated_text,
-    } 
+    try:
+        response = generate_response(request.prompt, context, history)
+        return {"success": True, "message": "Text generated successfully", "text": response}
+    except Exception as e:
+        logger.error(f"Error generating text: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating text: {str(e)}"
+        ) 
