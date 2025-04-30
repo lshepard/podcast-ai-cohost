@@ -40,6 +40,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
   }, [segments]);
 
   const currentSegment = audioSegments[currentSegmentIndex];
+  const currentAudioUrl = currentSegment?.normalizedUrl;
 
   // Handle segment navigation using useCallback to prevent unnecessary recreations
   const handleSegmentEnd = useCallback(() => {
@@ -48,16 +49,16 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
     }
   }, [currentSegmentIndex, audioSegments.length]);
 
-  // Initialize WaveSurfer when component mounts
+  // Initialize WaveSurfer when component mounts or audio URL changes
   useEffect(() => {
     let isActive = true;
     
-    if (!containerRef.current || !currentSegment?.normalizedUrl) return;
+    if (!containerRef.current || !currentAudioUrl) return;
     
-    console.log('Initializing WaveSurfer:', { 
-      segmentId: currentSegment.id,
-      url: currentSegment.normalizedUrl 
-    });
+    // Log container dimensions
+    const containerWidth = containerRef.current.clientWidth;
+    const containerHeight = containerRef.current.clientHeight;
+    console.log('Waveform container dimensions:', { width: containerWidth, height: containerHeight });
     
     // Clean up previous instance
     if (wavesurferRef.current) {
@@ -73,7 +74,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       // Create and configure WaveSurfer
       const wavesurfer = WaveSurfer.create({
         container: containerRef.current,
-        waveColor: SEGMENT_COLORS[currentSegment.segment_type] || '#4a74a8',
+        waveColor: SEGMENT_COLORS[currentSegment?.segment_type] || '#4a74a8',
         progressColor: '#2c5282',
         cursorColor: '#2c5282',
         barWidth: 2,
@@ -81,12 +82,14 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
         cursorWidth: 1,
         barGap: 3,
         height: 25,
+        minPxPerSec: 1,
+        normalize: true,
         plugins: [
           RegionsPlugin.create({
             dragSelection: false,
           }),
         ],
-        url: currentSegment.normalizedUrl // Directly load from URL
+        url: currentAudioUrl
       });
       
       if (!isActive) {
@@ -99,20 +102,26 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       // Set up event handlers
       wavesurfer.on('ready', () => {
         if (!isActive) return;
+        const duration = wavesurfer.getDuration();
         console.log('WaveSurfer: Ready', { 
-          segmentId: currentSegment.id,
-          url: currentSegment.normalizedUrl
+          segmentId: currentSegment?.id,
+          url: currentAudioUrl,
+          duration,
+          containerWidth,
+          containerHeight
         });
-        setDuration(wavesurfer.getDuration());
+        setDuration(duration);
         setIsLoading(false);
       });
 
       wavesurfer.on('error', (err) => {
         if (!isActive) return;
         console.error('WaveSurfer: Error', err, {
-          url: currentSegment.normalizedUrl,
-          segmentId: currentSegment.id,
-          stack: err.stack
+          url: currentAudioUrl,
+          segmentId: currentSegment?.id,
+          stack: err.stack,
+          containerWidth,
+          containerHeight
         });
         setError('Failed to load audio');
       });
@@ -134,9 +143,11 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
     } catch (error) {
       if (!isActive) return;
       console.error('Error initializing WaveSurfer:', error, {
-        segmentId: currentSegment.id,
-        url: currentSegment.normalizedUrl,
-        stack: error.stack
+        segmentId: currentSegment?.id,
+        url: currentAudioUrl,
+        stack: error.stack,
+        containerWidth,
+        containerHeight
       });
       setError('Failed to initialize audio player');
     }
@@ -153,7 +164,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
         wavesurferRef.current = null;
       }
     };
-  }, [currentSegment, handleSegmentEnd]);
+  }, [currentAudioUrl, handleSegmentEnd]);
 
   // Setup regions when segments change
   useEffect(() => {
@@ -235,7 +246,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
           </Typography>
         )}
       </Stack>
-      <Box ref={containerRef} sx={{ width: '100%', height: 25 }} />
+      <Box ref={containerRef} sx={{ width: fullWidth ? '100%' : '50%', height: 25 }} />
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
           <CircularProgress />
