@@ -57,7 +57,7 @@ import {
 } from '../services/api';
 import EpisodeSources from './EpisodeSources';
 import NotesEditor from './NotesEditor';
-import EpisodeWaveform from './EpisodeWaveform';
+import WaveformPlayer from './WaveformPlayer';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -760,7 +760,9 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
           </Box>
         </Paper>
 
-        <EpisodeWaveform segments={segments} />
+        {segments?.some(segment => segment.audio_path) && (
+          <WaveformPlayer segments={segments} fullWidth={true} />
+        )}
 
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>

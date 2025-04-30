@@ -12,8 +12,9 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import AudioPlayer from './AudioPlayer';
+import WaveformPlayer from './WaveformPlayer';
 import { updateSegment, deleteSegment, generateSpeech } from '../services/api';
+import { getAudioUrl } from '../utils/audio';
 
 const SegmentItem = ({ 
   segment, 
@@ -22,7 +23,8 @@ const SegmentItem = ({
   onUpdate, 
   apiBaseUrl,
   dragHandleProps,
-  isDragging
+  isDragging,
+  onPlay
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -186,26 +188,12 @@ const SegmentItem = ({
     }
   };
 
-  const getAudioUrl = () => {
-    if (!segment.audio_path) return null;
-    
-    // Check if it's a full URL
-    if (segment.audio_path.startsWith('http')) {
-      return segment.audio_path;
+  const handlePlayClick = () => {
+    if (segment.audio_path) {
+      const audioUrl = getAudioUrl(segment.audio_path);
+      console.log('Audio URL:', { segmentType: segment.segment_type, audioPath: segment.audio_path, fullUrl: audioUrl });
+      onPlay(audioUrl);
     }
-    
-    // Get the base URL without the /api part
-    const baseUrl = apiBaseUrl.replace('/api', '');
-    const fullUrl = `${baseUrl}${segment.audio_path}`;
-    
-    console.log('Audio URL:', {
-      segmentType: segment.segment_type,
-      audioPath: segment.audio_path,
-      baseUrl,
-      fullUrl
-    });
-    
-    return fullUrl;
   };
 
   return (
@@ -283,9 +271,12 @@ const SegmentItem = ({
           
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: '160px', maxWidth: '220px' }}>
             {segment.audio_path && !isGenerating ? (
-              <AudioPlayer 
-                audioUrl={getAudioUrl()} 
-                compact={true}
+              <WaveformPlayer 
+                segments={[{
+                  ...segment,
+                  audio_path: getAudioUrl(segment.audio_path)
+                }]} 
+                fullWidth={false}
               />
             ) : isGenerating ? (
               <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
