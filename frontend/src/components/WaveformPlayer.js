@@ -50,6 +50,8 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
 
   // Initialize WaveSurfer when component mounts
   useEffect(() => {
+    let isActive = true;
+    
     if (!containerRef.current || !currentSegment?.normalizedUrl) return;
     
     console.log('Initializing WaveSurfer:', { 
@@ -59,7 +61,11 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
     
     // Clean up previous instance
     if (wavesurferRef.current) {
-      wavesurferRef.current.destroy();
+      try {
+        wavesurferRef.current.destroy();
+      } catch (err) {
+        console.warn('Error cleaning up previous WaveSurfer instance:', err);
+      }
       wavesurferRef.current = null;
     }
     
@@ -83,10 +89,16 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
         url: currentSegment.normalizedUrl // Directly load from URL
       });
       
+      if (!isActive) {
+        wavesurfer.destroy();
+        return;
+      }
+      
       wavesurferRef.current = wavesurfer;
       
       // Set up event handlers
       wavesurfer.on('ready', () => {
+        if (!isActive) return;
         console.log('WaveSurfer: Ready', { 
           segmentId: currentSegment.id,
           url: currentSegment.normalizedUrl
@@ -96,6 +108,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       });
 
       wavesurfer.on('error', (err) => {
+        if (!isActive) return;
         console.error('WaveSurfer: Error', err, {
           url: currentSegment.normalizedUrl,
           segmentId: currentSegment.id,
@@ -106,23 +119,20 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
 
       wavesurfer.on('finish', handleSegmentEnd);
       wavesurfer.on('audioprocess', () => {
+        if (!isActive) return;
         setCurrentTime(wavesurfer.getCurrentTime());
       });
       wavesurfer.on('play', () => {
+        if (!isActive) return;
         setIsPlaying(true);
       });
       wavesurfer.on('pause', () => {
+        if (!isActive) return;
         setIsPlaying(false);
       });
 
-      // Clean up on unmount
-      return () => {
-        if (wavesurferRef.current) {
-          wavesurferRef.current.destroy();
-          wavesurferRef.current = null;
-        }
-      };
     } catch (error) {
+      if (!isActive) return;
       console.error('Error initializing WaveSurfer:', error, {
         segmentId: currentSegment.id,
         url: currentSegment.normalizedUrl,
@@ -130,6 +140,19 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       });
       setError('Failed to initialize audio player');
     }
+
+    // Clean up on unmount
+    return () => {
+      isActive = false;
+      if (wavesurferRef.current) {
+        try {
+          wavesurferRef.current.destroy();
+        } catch (err) {
+          console.warn('Error destroying WaveSurfer on cleanup:', err);
+        }
+        wavesurferRef.current = null;
+      }
+    };
   }, [currentSegment, handleSegmentEnd]);
 
   // Setup regions when segments change
