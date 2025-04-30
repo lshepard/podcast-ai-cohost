@@ -6,11 +6,18 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import os
+import logging
 
 from app.api.routes import audio, episodes, generate, segments, sources
 from app.core.config import settings
 from app.db.session import init_db
 from app.admin import mount_admin
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Initialize the database
 init_db()

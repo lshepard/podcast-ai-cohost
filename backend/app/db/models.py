@@ -17,6 +17,7 @@ class SegmentType(str, Enum):
 class SourceType(str, Enum):
     PDF = "pdf"
     WEB = "web"
+    TEXT = "text"
 
 
 # Association table for Episode-Source many-to-many relationship

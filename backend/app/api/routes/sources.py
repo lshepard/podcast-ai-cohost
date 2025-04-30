@@ -1,6 +1,6 @@
 from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.api import schemas
@@ -8,6 +8,9 @@ from app.api.deps import get_current_user
 from app.db import models
 from app.db.session import get_db
 from app.lib.web import process_web_source
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -19,25 +22,48 @@ async def create_source(
     _: str = Depends(get_current_user),
 ):
     """Create a new source."""
-    # Process web sources
-    if source.source_type == models.SourceType.WEB and source.url:
-        result = process_web_source(source.url)
-        if not result['success']:
+    try:
+        # Validate source type
+        if source.source_type not in [models.SourceType.WEB, models.SourceType.PDF, models.SourceType.TEXT]:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result.get('error', 'Failed to process web source')
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid source type. Must be one of: {', '.join([t.value for t in models.SourceType])}"
             )
+
+        # Process web sources
+        if source.source_type == models.SourceType.WEB and source.url:
+            result = process_web_source(source.url)
+            if not result['success']:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=result.get('error', 'Failed to process web source')
+                )
+            
+            # Update source with scraped content and summary
+            source.content = result['content']
+            source.summary = result['summary']
+            
+            # If no title provided, use the URL as the title
+            if not source.title:
+                source.title = source.url
         
-        # Update source with scraped content and summary
-        source.content = result['content']
-        source.summary = result['summary']
-    
-    # Create the source
-    db_source = models.Source(**source.model_dump())
-    db.add(db_source)
-    db.commit()
-    db.refresh(db_source)
-    return db_source
+        # Create the source
+        db_source = models.Source(**source.model_dump())
+        db.add(db_source)
+        db.commit()
+        db.refresh(db_source)
+        return db_source
+
+    except HTTPException as he:
+        # Re-raise HTTP exceptions as they are already properly formatted
+        raise he
+    except Exception as e:
+        # Log the full exception details
+        logger.error(f"Error creating source: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating source: {str(e)}"
+        )
 
 
 @router.get("/sources", response_model=List[schemas.Source])

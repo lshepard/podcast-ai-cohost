@@ -17,7 +17,7 @@ class SourceType(str, Enum):
 
 # Source schemas
 class SourceBase(BaseModel):
-    title: str
+    title: Optional[str] = None
     source_type: SourceType
     content: Optional[str] = None
     summary: Optional[str] = None

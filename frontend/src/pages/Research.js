@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Button,
   Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Paper,
   Table,
   TableBody,
@@ -15,34 +10,32 @@ import {
   TableHead,
   TableRow,
   Typography,
-  TextField,
-  MenuItem,
   IconButton,
   Tooltip,
+  Chip,
+  Button,
+  Grid,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { getSources, createSource, updateSource, deleteSource } from '../services/api';
+import LanguageIcon from '@mui/icons-material/Language';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import TextFieldsIcon from '@mui/icons-material/TextFields';
+import { getSources, deleteSource, createSource } from '../services/api';
+import SourceContentDialog from '../components/SourceContentDialog';
 
 const SourceType = {
-  PDF: 'pdf',
   WEB: 'web',
+  PDF: 'pdf',
+  TEXT: 'text',
 };
 
 const Research = () => {
   const [sources, setSources] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSource, setEditingSource] = useState(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    source_type: SourceType.WEB,
-    url: '',
-    file_path: '',
-    content: '',
-  });
+  const [contentDialogOpen, setContentDialogOpen] = useState(false);
+  const [selectedSourceType, setSelectedSourceType] = useState(null);
 
   useEffect(() => {
     fetchSources();
@@ -61,63 +54,6 @@ const Research = () => {
     }
   };
 
-  const handleOpenDialog = (source = null) => {
-    if (source) {
-      setEditingSource(source);
-      setFormData({
-        title: source.title,
-        source_type: source.source_type,
-        url: source.url || '',
-        file_path: source.file_path || '',
-        content: source.content || '',
-      });
-    } else {
-      setEditingSource(null);
-      setFormData({
-        title: '',
-        source_type: SourceType.WEB,
-        url: '',
-        file_path: '',
-        content: '',
-      });
-    }
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingSource(null);
-    setFormData({
-      title: '',
-      source_type: SourceType.WEB,
-      url: '',
-      file_path: '',
-      content: '',
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async () => {
-    try {
-      if (editingSource) {
-        await updateSource(editingSource.id, formData);
-      } else {
-        await createSource(formData);
-      }
-      await fetchSources();
-      handleCloseDialog();
-    } catch (err) {
-      console.error('Error saving source:', err);
-    }
-  };
-
   const handleDelete = async (sourceId) => {
     if (window.confirm('Are you sure you want to delete this source?')) {
       try {
@@ -126,6 +62,15 @@ const Research = () => {
       } catch (err) {
         console.error('Error deleting source:', err);
       }
+    }
+  };
+
+  const handleSourceCreate = async (sourceData) => {
+    try {
+      await createSource(sourceData);
+      await fetchSources();
+    } catch (err) {
+      console.error('Error creating source:', err);
     }
   };
 
@@ -147,15 +92,53 @@ const Research = () => {
 
   return (
     <Container>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ mb: 4 }}>
         <Typography variant="h4">Research Sources</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Add Source
-        </Button>
+        
+        <Grid container spacing={2} sx={{ mt: 2 }}>
+          <Grid item xs={12} sm={4}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<LanguageIcon />}
+              onClick={() => {
+                setSelectedSourceType(SourceType.WEB);
+                setContentDialogOpen(true);
+              }}
+              sx={{ height: '100px' }}
+            >
+              Scrape Web Page
+            </Button>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<PictureAsPdfIcon />}
+              onClick={() => {
+                setSelectedSourceType(SourceType.PDF);
+                setContentDialogOpen(true);
+              }}
+              sx={{ height: '100px' }}
+            >
+              Upload PDF
+            </Button>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<TextFieldsIcon />}
+              onClick={() => {
+                setSelectedSourceType(SourceType.TEXT);
+                setContentDialogOpen(true);
+              }}
+              sx={{ height: '100px' }}
+            >
+              Enter Text
+            </Button>
+          </Grid>
+        </Grid>
       </Box>
 
       <TableContainer component={Paper}>
@@ -165,6 +148,7 @@ const Research = () => {
               <TableCell>Title</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>URL/File</TableCell>
+              <TableCell>Used in Episodes</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -172,11 +156,35 @@ const Research = () => {
             {sources.map((source) => (
               <TableRow key={source.id}>
                 <TableCell>{source.title}</TableCell>
-                <TableCell>{source.source_type}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={source.source_type}
+                    size="small"
+                    color={source.source_type === 'pdf' ? 'primary' : 'secondary'}
+                  />
+                </TableCell>
                 <TableCell>{source.url || source.file_path}</TableCell>
                 <TableCell>
+                  {source.episodes && source.episodes.length > 0 ? (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {source.episodes.map(episode => (
+                        <Chip
+                          key={episode.id}
+                          label={episode.title}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Not used in any episodes
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
                   <Tooltip title="Edit">
-                    <IconButton onClick={() => handleOpenDialog(source)}>
+                    <IconButton>
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
@@ -191,68 +199,6 @@ const Research = () => {
           </TableBody>
         </Table>
       </TableContainer>
-
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{editingSource ? 'Edit Source' : 'Add Source'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-            <TextField
-              label="Title"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
-              fullWidth
-              required
-            />
-            <TextField
-              select
-              label="Source Type"
-              name="source_type"
-              value={formData.source_type}
-              onChange={handleInputChange}
-              fullWidth
-              required
-            >
-              <MenuItem value={SourceType.WEB}>Web Page</MenuItem>
-              <MenuItem value={SourceType.PDF}>PDF</MenuItem>
-            </TextField>
-            {formData.source_type === SourceType.WEB ? (
-              <TextField
-                label="URL"
-                name="url"
-                value={formData.url}
-                onChange={handleInputChange}
-                fullWidth
-                required
-              />
-            ) : (
-              <TextField
-                label="File Path"
-                name="file_path"
-                value={formData.file_path}
-                onChange={handleInputChange}
-                fullWidth
-                required
-              />
-            )}
-            <TextField
-              label="Content"
-              name="content"
-              value={formData.content}
-              onChange={handleInputChange}
-              fullWidth
-              multiline
-              rows={4}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {editingSource ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Container>
   );
 };

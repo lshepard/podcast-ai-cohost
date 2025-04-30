@@ -124,7 +124,17 @@ const EpisodeEditor = ({ episodeId }) => {
     };
   }, [handleEditSegment]);
 
+  const fetchEpisode = async () => {
+    try {
+      const response = await getEpisode(episodeId);
+      setEpisode(response.data);
+    } catch (err) {
+      console.error('Error fetching episode:', err);
+    }
+  };
+
   useEffect(() => {
+    fetchEpisode();
     fetchEpisodeData();
   }, [episodeId]);
 
@@ -133,9 +143,6 @@ const EpisodeEditor = ({ episodeId }) => {
     setError(null);
     
     try {
-      const episodeResponse = await getEpisode(episodeId);
-      setEpisode(episodeResponse.data);
-      
       const segmentsResponse = await getSegments(episodeId);
       const segmentsWithIds = segmentsResponse.data.map(segment => ({
         ...segment,
@@ -529,7 +536,11 @@ const EpisodeEditor = ({ episodeId }) => {
       </Box>
 
       <Box sx={{ mb: 4 }}>
-        <EpisodeSources episodeId={episodeId} episodeSources={episode?.sources || []} />
+        <EpisodeSources 
+          episodeId={episodeId} 
+          episodeSources={episode?.sources || []} 
+          onSourcesUpdate={fetchEpisode}
+        />
       </Box>
 
       <Container maxWidth="md">
