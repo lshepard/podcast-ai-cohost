@@ -1,15 +1,19 @@
 from typing import Dict, List, Optional, Tuple
 
 from openai import OpenAI
+from langsmith.wrappers import wrap_openai
+from langsmith import traceable
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 
-# Initialize OpenAI client if key is available
-client = OpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+# Initialize OpenAI client with LangSmith instrumentation if key is available
+client = wrap_openai(OpenAI(api_key=settings.OPENAI_API_KEY)) if settings.OPENAI_API_KEY else None
 
 
 @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3))
+@traceable
 async def generate_response(prompt: str, context: str = None, history: List[Dict] = None) -> str:
     """Generate response from OpenAI LLM.
     
@@ -95,8 +99,9 @@ Use natural transitions and avoid phrases like "As an AI" or similar robotic lan
     return context 
 
 
+@traceable
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-def generate_summary(content: str) -> str:
+async def generate_summary(content: str) -> str:
     """
     Generate a summary of the given content using the LLM.
     
@@ -113,7 +118,7 @@ Content:
 {content}
 """
     
-    generated_text = generate_response(prompt)
+    generated_text = await generate_response(prompt)
     if not generated_text:
         raise Exception("Failed to generate summary")
     

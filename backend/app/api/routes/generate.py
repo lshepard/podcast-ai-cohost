@@ -63,6 +63,7 @@ async def generate_text(
         return {"success": True, "message": "Text generated successfully", "text": response}
     except Exception as e:
         logger.error(f"Error generating text: {str(e)}")
+        raise e
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating text: {str(e)}"

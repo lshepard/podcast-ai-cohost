@@ -22,6 +22,9 @@ dependencies = [
     "sqladmin>=0.20.1",
     "crawl4ai>=0.6.2",
     "llama-parse>=0.6.20",
+    "langsmith>=0.3.39",
+    "langchain>=0.3.24",
+    "langchain-openai>=0.3.14",
 ]
 
 [project.optional-dependencies]
