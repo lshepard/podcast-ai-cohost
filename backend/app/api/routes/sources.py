@@ -33,7 +33,7 @@ async def create_source(
 
         # Process web sources
         if source.source_type == models.SourceType.WEB and source.url:
-            result = process_web_source(source.url)
+            result = await process_web_source(source.url)
             if not result['success']:
                 logger.error(f"Error processing web source: {result.get('error', 'Failed to process web source')}")
                 raise HTTPException(

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -9,7 +9,10 @@ import {
   TextField,
   CircularProgress,
   Typography,
+  Link,
 } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
 
 const SourceType = {
   WEB: 'web',
@@ -17,6 +20,125 @@ const SourceType = {
   TEXT: 'text',
 };
 
+// New component to display source content and summary
+export const SourceContentDisplayDialog = ({ open, onClose, source, onSave, isEditing: initialIsEditing = false }) => {
+  const [isEditing, setIsEditing] = useState(initialIsEditing);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedSummary, setEditedSummary] = useState('');
+  const [editedContent, setEditedContent] = useState('');
+
+  useEffect(() => {
+    if (source) {
+      setEditedTitle(source.title || '');
+      setEditedSummary(source.summary || '');
+      setEditedContent(source.content || '');
+    }
+  }, [source]);
+
+  useEffect(() => {
+    setIsEditing(initialIsEditing);
+  }, [initialIsEditing]);
+
+  if (!source) return null;
+
+  const handleSave = () => {
+    onSave({
+      ...source,
+      title: editedTitle,
+      summary: editedSummary,
+      content: editedContent
+    });
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditedTitle(source.title || '');
+    setEditedSummary(source.summary || '');
+    setEditedContent(source.content || '');
+    setIsEditing(false);
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        {isEditing ? (
+          <TextField
+            fullWidth
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            variant="standard"
+            sx={{ mb: 1 }}
+          />
+        ) : (
+          source.title
+        )}
+        {source.url && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Link href={source.url} target="_blank" rel="noopener noreferrer">
+              {new URL(source.url).hostname}
+            </Link>
+          </Typography>
+        )}
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Summary
+            </Typography>
+            {isEditing ? (
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                value={editedSummary}
+                onChange={(e) => setEditedSummary(e.target.value)}
+                variant="outlined"
+              />
+            ) : (
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                {source.summary || 'No summary available'}
+              </Typography>
+            )}
+          </Box>
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Content
+            </Typography>
+            {isEditing ? (
+              <TextField
+                fullWidth
+                multiline
+                rows={8}
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                variant="outlined"
+              />
+            ) : (
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                {source.content || 'No content available'}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        {isEditing ? (
+          <>
+            <Button onClick={handleCancel}>Cancel</Button>
+            <Button onClick={handleSave} variant="contained" color="primary">
+              Save
+            </Button>
+          </>
+        ) : (
+          <Button onClick={onClose}>Close</Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Original component for creating/editing sources
 const SourceContentDialog = ({ 
   open, 
   onClose, 

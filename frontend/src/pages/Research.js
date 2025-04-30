@@ -15,14 +15,16 @@ import {
   Chip,
   Button,
   Grid,
+  Link,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LanguageIcon from '@mui/icons-material/Language';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
-import { getSources, deleteSource, createSource } from '../services/api';
-import SourceContentDialog from '../components/SourceContentDialog';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import { getSources, deleteSource, createSource, updateSource } from '../services/api';
+import SourceContentDialog, { SourceContentDisplayDialog } from '../components/SourceContentDialog';
 
 const SourceType = {
   WEB: 'web',
@@ -36,6 +38,9 @@ const Research = () => {
   const [error, setError] = useState(null);
   const [contentDialogOpen, setContentDialogOpen] = useState(false);
   const [selectedSourceType, setSelectedSourceType] = useState(null);
+  const [selectedSource, setSelectedSource] = useState(null);
+  const [displayDialogOpen, setDisplayDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     fetchSources();
@@ -71,6 +76,32 @@ const Research = () => {
       await fetchSources();
     } catch (err) {
       console.error('Error creating source:', err);
+    }
+  };
+
+  const handleEditClick = (source) => {
+    setSelectedSource(source);
+    setIsEditing(true);
+    setDisplayDialogOpen(true);
+  };
+
+  const handleViewContent = (source) => {
+    setSelectedSource(source);
+    setIsEditing(false);
+    setDisplayDialogOpen(true);
+  };
+
+  const handleSaveSource = async (updatedSource) => {
+    try {
+      await updateSource(updatedSource.id, {
+        title: updatedSource.title,
+        summary: updatedSource.summary,
+        content: updatedSource.content
+      });
+      await fetchSources();
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error updating source:', err);
     }
   };
 
@@ -148,6 +179,7 @@ const Research = () => {
               <TableCell>Title</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>URL/File</TableCell>
+              <TableCell>Summary</TableCell>
               <TableCell>Used in Episodes</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -163,7 +195,48 @@ const Research = () => {
                     color={source.source_type === 'pdf' ? 'primary' : 'secondary'}
                   />
                 </TableCell>
-                <TableCell>{source.url || source.file_path}</TableCell>
+                <TableCell>
+                  {source.url ? (
+                    <Link href={source.url} target="_blank" rel="noopener noreferrer">
+                      {new URL(source.url).hostname}
+                    </Link>
+                  ) : (
+                    source.file_path
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ maxWidth: '300px' }}>
+                    {source.summary ? (
+                      <>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            whiteSpace: 'pre-wrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            mb: 1
+                          }}
+                        >
+                          {source.summary}
+                        </Typography>
+                        <Button
+                          size="small"
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => handleViewContent(source)}
+                        >
+                          See content
+                        </Button>
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No summary available
+                      </Typography>
+                    )}
+                  </Box>
+                </TableCell>
                 <TableCell>
                   {source.episodes && source.episodes.length > 0 ? (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -184,7 +257,7 @@ const Research = () => {
                 </TableCell>
                 <TableCell>
                   <Tooltip title="Edit">
-                    <IconButton>
+                    <IconButton onClick={() => handleEditClick(source)}>
                       <EditIcon />
                     </IconButton>
                   </Tooltip>
@@ -205,6 +278,17 @@ const Research = () => {
         onClose={() => setContentDialogOpen(false)}
         sourceType={selectedSourceType}
         onSubmit={handleSourceCreate}
+      />
+
+      <SourceContentDisplayDialog
+        open={displayDialogOpen}
+        onClose={() => {
+          setDisplayDialogOpen(false);
+          setIsEditing(false);
+        }}
+        source={selectedSource}
+        onSave={handleSaveSource}
+        isEditing={isEditing}
       />
     </Container>
   );
