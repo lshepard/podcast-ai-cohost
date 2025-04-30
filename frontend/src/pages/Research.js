@@ -199,6 +199,13 @@ const Research = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <SourceContentDialog
+        open={contentDialogOpen}
+        onClose={() => setContentDialogOpen(false)}
+        sourceType={selectedSourceType}
+        onSubmit={handleSourceCreate}
+      />
     </Container>
   );
 };
