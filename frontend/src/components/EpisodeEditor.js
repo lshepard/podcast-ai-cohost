@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Button,
-  ButtonGroup,
   CircularProgress,
   Container,
   Dialog,
@@ -22,7 +21,6 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import EditIcon from '@mui/icons-material/Edit';
@@ -57,7 +55,6 @@ import {
 } from '../services/api';
 import EpisodeSources from './EpisodeSources';
 import NotesEditor from './NotesEditor';
-import WaveformPlayer from './WaveformPlayer';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -82,7 +79,7 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
   const [insertPosition, setInsertPosition] = useState(null);
   
   // States for adding segments
-  const [recordedAudioBlob, setRecordedAudioBlob] = useState(null);
+  const [setRecordedAudioBlob] = useState(null);
   const [botPrompt, setBotPrompt] = useState('');
   const [botResponse, setBotResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -138,11 +135,6 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     }
   };
 
-  useEffect(() => {
-    fetchEpisode();
-    fetchEpisodeData();
-  }, [episodeId]);
-
   const fetchEpisodeData = async () => {
     setIsLoading(true);
     setError(null);
@@ -165,6 +157,11 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     }
   };
 
+  useEffect(() => {
+    fetchEpisode();
+    fetchEpisodeData();
+  }, [episodeId]);
+
   const handleAddHumanSegment = (position = null) => {
     setInsertPosition(position);
     setAddHumanDialogOpen(true);
@@ -177,7 +174,6 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
 
   const handleHumanDialogClose = () => {
     setAddHumanDialogOpen(false);
-    setRecordedAudioBlob(null);
     setInsertPosition(null);
   };
 
@@ -491,7 +487,7 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
       setEditDialogOpen(false);
       
       // Update in database
-      const response = await updateSegment(episodeId, segmentId, {
+      await updateSegment(episodeId, segmentId, {
         text_content: newText
       });
       
@@ -759,12 +755,6 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
             )}
           </Box>
         </Paper>
-
-        {segments?.some(segment => segment.audio_path) && (
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <WaveformPlayer segments={segments} fullWidth={true} />
-          </Paper>
-        )}
 
         <Paper sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>

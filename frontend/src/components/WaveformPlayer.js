@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Box, Paper, Typography, CircularProgress, IconButton, Stack } from '@mui/material';
+import { Box, Typography, CircularProgress, IconButton, Stack } from '@mui/material';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/plugins/regions';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -26,7 +26,6 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
 
   // Get segments with audio using useMemo to prevent unnecessary recalculations
   const audioSegments = useMemo(() => {
@@ -129,7 +128,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       wavesurfer.on('finish', handleSegmentEnd);
       wavesurfer.on('audioprocess', () => {
         if (!isActive) return;
-        setCurrentTime(wavesurfer.getCurrentTime());
+        // setCurrentTime(wavesurfer.getCurrentTime()); // Removed because currentTime is no longer used
       });
       wavesurfer.on('play', () => {
         if (!isActive) return;
@@ -164,7 +163,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
         wavesurferRef.current = null;
       }
     };
-  }, [currentAudioUrl, handleSegmentEnd]);
+  }, [currentAudioUrl, handleSegmentEnd, currentSegment?.id, currentSegment?.segment_type]);
 
   // Setup regions when segments change
   useEffect(() => {
