@@ -1,5 +1,6 @@
 import os
 from typing import List
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -10,6 +11,9 @@ from app.core.config import settings
 from app.db import models
 from app.db.session import get_db
 from app.lib.llm import generate_response, prepare_podcast_context
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -55,7 +59,7 @@ async def generate_text(
     
     # Generate response
     try:
-        response = generate_response(request.prompt, context, history)
+        response = await generate_response(request.prompt, context, history)
         return {"success": True, "message": "Text generated successfully", "text": response}
     except Exception as e:
         logger.error(f"Error generating text: {str(e)}")

@@ -10,11 +10,12 @@ client = OpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else
 
 
 @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3))
-async def generate_response(prompt: str, history: List[Dict] = None) -> str:
+async def generate_response(prompt: str, context: str = None, history: List[Dict] = None) -> str:
     """Generate response from OpenAI LLM.
     
     Args:
         prompt: The prompt for the LLM
+        context: Additional context for the conversation
         history: List of previous messages in the conversation
         
     Returns:
@@ -26,6 +27,10 @@ async def generate_response(prompt: str, history: List[Dict] = None) -> str:
     try:
         # Prepare conversation history if provided
         messages = []
+        
+        # Add system message with context if provided
+        if context:
+            messages.append({"role": "system", "content": context})
         
         if history:
             messages.extend(history)
