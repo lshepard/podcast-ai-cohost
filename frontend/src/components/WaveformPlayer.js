@@ -80,7 +80,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
         barRadius: 3,
         cursorWidth: 1,
         barGap: 3,
-        height: 100,
+        height: 25,
         plugins: [
           RegionsPlugin.create({
             dragSelection: false,
@@ -218,8 +218,8 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
   }
 
   return (
-    <Paper sx={{ p: 3, mb: 3, width: fullWidth ? '100%' : 'auto' }}>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Stack direction="row" spacing={1} alignItems="center">
         <IconButton onClick={handlePlayPause} size="small">
           {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
         </IconButton>
@@ -235,6 +235,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
           </Typography>
         )}
       </Stack>
+      <Box ref={containerRef} sx={{ width: '100%', height: 25 }} />
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
           <CircularProgress />
@@ -243,8 +244,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       {error && (
         <Typography color="error">{error}</Typography>
       )}
-      <Box ref={containerRef} sx={{ width: '100%' }} />
-    </Paper>
+    </Stack>
   );
 };
 

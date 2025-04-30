@@ -761,7 +761,9 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
         </Paper>
 
         {segments?.some(segment => segment.audio_path) && (
-          <WaveformPlayer segments={segments} fullWidth={true} />
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <WaveformPlayer segments={segments} fullWidth={true} />
+          </Paper>
         )}
 
         <Paper sx={{ p: 3 }}>
