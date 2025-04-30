@@ -23,6 +23,7 @@ async def create_source(
 ):
     """Create a new source."""
     try:
+        logger.info(f"Creating source from : {source}")
         # Validate source type
         if source.source_type not in [models.SourceType.WEB, models.SourceType.PDF, models.SourceType.TEXT]:
             raise HTTPException(
@@ -34,18 +35,21 @@ async def create_source(
         if source.source_type == models.SourceType.WEB and source.url:
             result = process_web_source(source.url)
             if not result['success']:
+                logger.error(f"Error processing web source: {result.get('error', 'Failed to process web source')}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=result.get('error', 'Failed to process web source')
                 )
-            
+
+            logger.info(f"Scraped content: {result['summary']}")
             # Update source with scraped content and summary
             source.content = result['content']
             source.summary = result['summary']
+            source.source_type = result['source_type']  # Update source type based on URL
             
-            # If no title provided, use the URL as the title
+            # If no title provided, use the title from the scraped content
             if not source.title:
-                source.title = source.url
+                source.title = result.get('title', source.url)
         
         # Create the source
         db_source = models.Source(**source.model_dump())

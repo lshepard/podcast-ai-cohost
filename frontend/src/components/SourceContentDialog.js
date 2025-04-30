@@ -55,10 +55,17 @@ const SourceContentDialog = ({
           break;
       }
 
+      console.log('Creating source with data:', sourceData);
       await onSubmit(sourceData);
+      console.log('Source created successfully');
       onClose();
     } catch (err) {
       console.error('Error creating source:', err);
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        console.error('Error status:', err.response.status);
+        console.error('Error headers:', err.response.headers);
+      }
     } finally {
       setIsLoading(false);
     }
