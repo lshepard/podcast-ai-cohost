@@ -13,6 +13,7 @@ class SegmentType(str, Enum):
 class SourceType(str, Enum):
     PDF = "pdf"
     WEB = "web"
+    TEXT = "text"
 
 
 # Source schemas
