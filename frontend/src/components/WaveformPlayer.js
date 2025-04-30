@@ -238,7 +238,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
           <RestartAltIcon />
         </IconButton>
         <Typography variant="body2" color="text.secondary">
-          {formatTime(currentTime)} / {formatTime(duration)}
+          {formatTime(duration)}
         </Typography>
         {audioSegments.length > 1 && (
           <Typography variant="body2" color="text.secondary">
@@ -246,7 +246,7 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
           </Typography>
         )}
       </Stack>
-      <Box ref={containerRef} sx={{ width: fullWidth ? '100%' : '50%', height: 25 }} />
+      <Box ref={containerRef} sx={{ width: fullWidth ? '100%' : '50%', minWidth: 200, height: 25 }} />
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
           <CircularProgress />
