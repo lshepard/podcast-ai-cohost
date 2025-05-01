@@ -24,7 +24,9 @@ const SegmentItem = ({
   apiBaseUrl,
   dragHandleProps,
   isDragging,
-  onPlay
+  onPlay,
+  playNext,
+  playAllEnabled
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -189,142 +191,100 @@ const SegmentItem = ({
   };
 
   const handlePlayClick = () => {
-    if (segment.audio_path) {
-      const audioUrl = getAudioUrl(segment.audio_path);
-      console.log('Audio URL:', { segmentType: segment.segment_type, audioPath: segment.audio_path, fullUrl: audioUrl });
-      onPlay(audioUrl);
+    if (segment.audio_path && onPlay) {
+      onPlay();
     }
   };
 
   return (
     <Card sx={{ 
-      mb: 0, 
-      position: 'relative',
-      transition: 'box-shadow 0.2s ease-in-out',
-      '&:hover': {
-        boxShadow: 3,
-        '& .drag-handle': {
-          opacity: 1,
-        }
-      },
-      boxShadow: isDragging ? 6 : 1,
+      mb: 2, 
+      opacity: isDragging ? 0.5 : 1,
+      backgroundColor: segment.segment_type === 'human' ? '#f5f9ff' : '#fdf5f9'
     }}>
-      {isLoading && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 2,
-          }}
-        >
-          <CircularProgress />
-        </Box>
-      )}
-      
-      {/* Drag handle indicator */}
-      <Box 
-        className="drag-handle"
-        sx={{ 
-          position: 'absolute', 
-          left: 0, 
-          top: 0, 
-          bottom: 0, 
-          width: '20px', 
-          display: 'flex', 
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(0,0,0,0.03)',
-          opacity: 0.3,
-          transition: 'opacity 0.2s ease',
-          cursor: 'grab',
-          '&:active': {
-            cursor: 'grabbing',
-          }
-        }}
-        {...dragHandleProps}
-      >
-        <DragIndicatorIcon fontSize="small" color="action" />
-      </Box>
-      
-      <CardContent sx={{ pl: '24px', py: 1.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Chip
-              icon={segment.segment_type === 'human' ? <PersonIcon /> : <SmartToyIcon />}
-              label={segment.segment_type === 'human' ? 'Human' : 'AI'}
-              color={segment.segment_type === 'human' ? 'primary' : 'secondary'}
-              size="small"
-              sx={{ mr: 1 }}
-            />
-            <Typography variant="caption" color="text.secondary">
-              {`#${segment.order_index + 1}`}
-            </Typography>
-          </Box>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          {dragHandleProps ? (
+            <Box {...dragHandleProps} sx={{ mr: 1, cursor: 'grab' }}>
+              <DragIndicatorIcon color="action" />
+            </Box>
+          ) : null}
           
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: '160px', maxWidth: '220px' }}>
-            {segment.audio_path && !isGenerating ? (
-              <WaveformPlayer 
-                segments={[{
-                  ...segment,
-                  audio_path: getAudioUrl(segment.audio_path)
-                }]} 
-                fullWidth={false}
-              />
-            ) : isGenerating ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
-                <CircularProgress size={18} sx={{ mr: 0.5 }} />
-                <Typography variant="caption" color="text.secondary">
-                  Generating...
-                </Typography>
-              </Box>
-            ) : null}
-            
-            <IconButton
-              size="small"
-              color="error"
-              onClick={handleDeleteSegment}
-              disabled={isLoading}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Box>
+          <Chip 
+            icon={segment.segment_type === 'human' ? <PersonIcon /> : <SmartToyIcon />}
+            label={segment.segment_type === 'human' ? 'Human' : 'AI'}
+            color={segment.segment_type === 'human' ? 'primary' : 'secondary'}
+            size="small"
+            sx={{ mr: 1 }}
+          />
+          
+          <Typography variant="body2" color="text.secondary">
+            {segment.id}
+          </Typography>
+          
+          <Box sx={{ flexGrow: 1 }} />
+          
+          <IconButton 
+            onClick={handleDeleteSegment} 
+            disabled={isLoading}
+            color="error"
+            size="small"
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
         </Box>
         
-        <Box sx={{ mt: 0, px: 0.5 }}>
+        <Box>
           <Typography 
             variant="body1" 
+            component="div" 
+            gutterBottom 
             sx={{ 
               whiteSpace: 'pre-wrap',
-              minHeight: '30px',
-              backgroundColor: '#f5f5f5',
-              p: 1.5,
+              cursor: 'pointer',
+              p: 1,
               borderRadius: 1,
-              fontSize: '0.95rem',
-              lineHeight: 1.5
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+              }
             }}
             onClick={() => {
-              // Open the text editor when clicking on the text
-              const customEvent = new CustomEvent('editSegment', { detail: { segmentId: segment.id } });
-              document.dispatchEvent(customEvent);
+              // Dispatch custom event to trigger edit dialog
+              const event = new CustomEvent('editSegment', {
+                detail: { segmentId: segment.id }
+              });
+              document.dispatchEvent(event);
             }}
           >
-            {segment.text_content || 'No text available.'}
+            {segment.text_content || <em>No text content</em>}
           </Typography>
+          
+          {segment.audio_path && (
+            <Box sx={{ mt: 2 }} onClick={handlePlayClick}>
+              <WaveformPlayer 
+                segments={[segment]} 
+                segmentId={segment.id}
+                playNext={playNext}
+                playAllEnabled={playAllEnabled}
+              />
+            </Box>
+          )}
+          
+          {isGenerating && (
+            <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+              <CircularProgress size={16} sx={{ mr: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                Generating audio...
+              </Typography>
+            </Box>
+          )}
+          
+          {error && (
+            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+              {error}
+            </Typography>
+          )}
         </Box>
-        
-        {error && (
-          <Typography color="error" sx={{ mt: 1, fontSize: '0.8rem' }}>
-            {error}
-          </Typography>
-        )}
       </CardContent>
     </Card>
   );

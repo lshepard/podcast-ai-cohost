@@ -3,7 +3,17 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import SegmentItem from './SegmentItem';
 
-const SortableSegmentItem = ({ id, segment, episodeId, onDelete, onUpdate, apiBaseUrl }) => {
+const SortableSegmentItem = ({ 
+  id, 
+  segment, 
+  episodeId, 
+  onDelete, 
+  onUpdate, 
+  apiBaseUrl, 
+  playNext,
+  playAllEnabled,
+  onPlay
+}) => {
   const {
     attributes,
     listeners,
@@ -30,6 +40,9 @@ const SortableSegmentItem = ({ id, segment, episodeId, onDelete, onUpdate, apiBa
         apiBaseUrl={apiBaseUrl}
         dragHandleProps={listeners}
         isDragging={isDragging}
+        playNext={playNext}
+        playAllEnabled={playAllEnabled}
+        onPlay={onPlay}
       />
     </div>
   );

@@ -17,6 +17,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Switch,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
@@ -83,6 +84,10 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
   const [botPrompt, setBotPrompt] = useState('');
   const [botResponse, setBotResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Play All feature
+  const [playAllEnabled, setPlayAllEnabled] = useState(false);
+  const [currentPlayingIndex, setCurrentPlayingIndex] = useState(null);
   
   // Set up DnD sensors with better movement thresholds
   const sensors = useSensors(
@@ -591,6 +596,46 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     }
   };
 
+  // Handle toggling playAllEnabled
+  const handlePlayAllToggle = (e) => {
+    const newValue = e.target.checked;
+    setPlayAllEnabled(newValue);
+    
+    // Reset current playing index when turned off
+    if (!newValue) {
+      setCurrentPlayingIndex(null);
+    }
+  };
+
+  // Function to handle playing the next segment
+  const handlePlayNext = useCallback(() => {
+    if (!playAllEnabled || currentPlayingIndex === null) return;
+    
+    const nextIndex = currentPlayingIndex + 1;
+    if (nextIndex < segments.length) {
+      setCurrentPlayingIndex(nextIndex);
+      
+      // Scroll to the next segment
+      setTimeout(() => {
+        const segmentElement = document.getElementById(`segment-${segments[nextIndex].id}`);
+        if (segmentElement) {
+          segmentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100); // Small delay to ensure DOM updates
+    } else {
+      // We've reached the end of the segments
+      setCurrentPlayingIndex(null);
+    }
+  }, [playAllEnabled, currentPlayingIndex, segments]);
+
+  // Function to start playing from a specific segment
+  const handleStartPlayingFrom = useCallback((index) => {
+    // Only set the index if play all is enabled
+    if (playAllEnabled) {
+      setCurrentPlayingIndex(index);
+    }
+  }, [playAllEnabled]);
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -757,9 +802,30 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
         </Paper>
 
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            Segments
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h5">
+              Segments
+            </Typography>
+            
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              border: '1px solid #e0e0e0',
+              borderRadius: 1,
+              padding: '4px 12px',
+              bgcolor: playAllEnabled ? 'rgba(33, 150, 243, 0.08)' : 'transparent'
+            }}>
+              <Typography variant="body2" sx={{ mr: 1, fontWeight: playAllEnabled ? 'bold' : 'normal' }}>
+                Auto-Play All Segments
+              </Typography>
+              <Switch
+                checked={playAllEnabled}
+                onChange={handlePlayAllToggle}
+                color="primary"
+                size="small"
+              />
+            </Box>
+          </Box>
           
           <Divider sx={{ my: 2 }} />
           
@@ -801,7 +867,11 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
                     strategy={verticalListSortingStrategy}
                   >
                     {segments.map((segment, index) => (
-                      <Box key={segment.id} sx={{ position: 'relative' }}>
+                      <Box 
+                        key={segment.id} 
+                        sx={{ position: 'relative' }}
+                        id={`segment-${segment.id}`}
+                      >
                         <SortableSegmentItem
                           id={segment.id}
                           segment={segment}
@@ -809,6 +879,9 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
                           onDelete={handleSegmentDelete}
                           onUpdate={handleSegmentUpdate}
                           apiBaseUrl={API_URL}
+                          playNext={handlePlayNext}
+                          playAllEnabled={playAllEnabled && currentPlayingIndex === index}
+                          onPlay={() => handleStartPlayingFrom(index)}
                         />
                         
                         {/* Add insert button between segments */}

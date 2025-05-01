@@ -102,23 +102,12 @@ const EpisodeSources = ({ episodeId, episodeSources = [], onSourcesUpdate }) => 
             <ListItemText
               primary={source.title}
               secondary={
-                <Box component="span" sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
-                  <Box component="span" sx={{ display: 'flex', gap: 1 }}>
-                    <Chip
-                      label={source.source_type}
-                      size="small"
-                      color={source.source_type === 'pdf' ? 'primary' : 'secondary'}
-                    />
-                    <Typography variant="body2" color="text.secondary" component="span">
-                      {source.url || source.file_path}
-                    </Typography>
-                  </Box>
-                  {source.summary && (
-                    <Typography variant="body2" color="text.secondary" component="span">
-                      {source.summary}
-                    </Typography>
-                  )}
-                </Box>
+                <Chip
+                  label={source.source_type}
+                  size="small"
+                  color={source.source_type === 'pdf' ? 'primary' : 'secondary'}
+                  sx={{ mt: 1 }}
+                />
               }
             />
             <ListItemSecondaryAction>

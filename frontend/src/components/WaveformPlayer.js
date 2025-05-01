@@ -18,7 +18,7 @@ const formatTime = (seconds) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-const WaveformPlayer = ({ segments, fullWidth = false }) => {
+const WaveformPlayer = ({ segments, fullWidth = false, segmentId, playNext, playAllEnabled = false }) => {
   const containerRef = useRef(null);
   const wavesurferRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,8 +45,12 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
   const handleSegmentEnd = useCallback(() => {
     if (currentSegmentIndex < audioSegments.length - 1) {
       setCurrentSegmentIndex(prev => prev + 1);
+    } else if (playAllEnabled && playNext) {
+      // If this is the last segment and play all is enabled, call the playNext callback
+      console.log('Segment finished, calling playNext callback');
+      playNext();
     }
-  }, [currentSegmentIndex, audioSegments.length]);
+  }, [currentSegmentIndex, audioSegments.length, playAllEnabled, playNext]);
 
   // Initialize WaveSurfer when component mounts or audio URL changes
   useEffect(() => {
@@ -111,6 +115,21 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
         });
         setDuration(duration);
         setIsLoading(false);
+        
+        // Auto-play if playAllEnabled is true
+        if (playAllEnabled) {
+          try {
+            wavesurfer.play()
+              .catch(err => {
+                // Ignore AbortError which commonly happens when play is interrupted
+                if (err.name !== 'AbortError') {
+                  console.error('Error playing audio:', err);
+                }
+              });
+          } catch (err) {
+            console.warn('Error during auto-play:', err);
+          }
+        }
       });
 
       wavesurfer.on('error', (err) => {
@@ -128,7 +147,6 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       wavesurfer.on('finish', handleSegmentEnd);
       wavesurfer.on('audioprocess', () => {
         if (!isActive) return;
-        // setCurrentTime(wavesurfer.getCurrentTime()); // Removed because currentTime is no longer used
       });
       wavesurfer.on('play', () => {
         if (!isActive) return;
@@ -163,7 +181,34 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
         wavesurferRef.current = null;
       }
     };
-  }, [currentAudioUrl, handleSegmentEnd, currentSegment?.id, currentSegment?.segment_type]);
+  }, [currentAudioUrl, handleSegmentEnd, currentSegment?.id, currentSegment?.segment_type, playAllEnabled]);
+
+  // Add effect to handle playAllEnabled changes for already initialized player
+  useEffect(() => {
+    if (wavesurferRef.current && !isLoading) {
+      if (playAllEnabled) {
+        console.log('Auto-playing segment because playAllEnabled became true');
+        try {
+          wavesurferRef.current.play()
+            .catch(err => {
+              // Ignore AbortError which commonly happens when play is interrupted
+              if (err.name !== 'AbortError') {
+                console.error('Error playing audio:', err);
+              }
+            });
+        } catch (err) {
+          console.warn('Error during auto-play:', err);
+        }
+      } else {
+        // Pause if play all is disabled
+        try {
+          wavesurferRef.current.pause();
+        } catch (err) {
+          console.warn('Error pausing audio:', err);
+        }
+      }
+    }
+  }, [playAllEnabled, isLoading]);
 
   // Setup regions when segments change
   useEffect(() => {
@@ -212,14 +257,38 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
   // Handle playback controls
   const handlePlayPause = useCallback(() => {
     if (wavesurferRef.current) {
-      wavesurferRef.current.playPause();
+      try {
+        if (wavesurferRef.current.isPlaying()) {
+          wavesurferRef.current.pause();
+        } else {
+          wavesurferRef.current.play()
+            .catch(err => {
+              // Ignore AbortError which commonly happens when play is interrupted
+              if (err.name !== 'AbortError') {
+                console.error('Error playing audio:', err);
+              }
+            });
+        }
+      } catch (err) {
+        console.warn('Error toggling play/pause:', err);
+      }
     }
   }, []);
 
   const handleRestart = useCallback(() => {
     if (wavesurferRef.current) {
-      wavesurferRef.current.seekTo(0);
-      wavesurferRef.current.play();
+      try {
+        wavesurferRef.current.seekTo(0);
+        wavesurferRef.current.play()
+          .catch(err => {
+            // Ignore AbortError which commonly happens when play is interrupted
+            if (err.name !== 'AbortError') {
+              console.error('Error playing audio after restart:', err);
+            }
+          });
+      } catch (err) {
+        console.warn('Error restarting audio:', err);
+      }
     }
   }, []);
 
@@ -248,11 +317,13 @@ const WaveformPlayer = ({ segments, fullWidth = false }) => {
       <Box ref={containerRef} sx={{ width: fullWidth ? '100%' : '50%', minWidth: 200, height: 25 }} />
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-          <CircularProgress />
+          <CircularProgress size={24} />
         </Box>
       )}
       {error && (
-        <Typography color="error">{error}</Typography>
+        <Typography variant="body2" color="error" sx={{ ml: 2 }}>
+          {error}
+        </Typography>
       )}
     </Stack>
   );
