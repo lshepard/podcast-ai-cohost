@@ -131,16 +131,16 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     };
   }, [handleEditSegment]);
 
-  const fetchEpisode = async () => {
+  const fetchEpisode = useCallback(async () => {
     try {
       const response = await getEpisode(episodeId);
       setEpisode(response.data);
     } catch (err) {
       console.error('Error fetching episode:', err);
     }
-  };
+  }, [episodeId]);
 
-  const fetchEpisodeData = async () => {
+  const fetchEpisodeData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
@@ -160,12 +160,12 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [episodeId]);
 
   useEffect(() => {
     fetchEpisode();
     fetchEpisodeData();
-  }, [episodeId]);
+  }, [episodeId, fetchEpisode, fetchEpisodeData]);
 
   const handleAddHumanSegment = (position = null) => {
     setInsertPosition(position);

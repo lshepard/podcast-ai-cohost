@@ -14,7 +14,6 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import WaveformPlayer from './WaveformPlayer';
 import { updateSegment, deleteSegment, generateSpeech } from '../services/api';
-import { getAudioUrl } from '../utils/audio';
 
 const SegmentItem = ({ 
   segment, 
@@ -37,44 +36,6 @@ const SegmentItem = ({
     setIsGenerating(segment.isGeneratingSpeech || false);
   }, [segment.isGeneratingSpeech]);
 
-  const handleTextSave = async (newText) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // First update just the text content
-      const response = await updateSegment(episodeId, segment.id, {
-        text_content: newText
-      });
-      
-      if (onUpdate) {
-        onUpdate(response.data);
-      }
-      
-      // For bot segments, regenerate audio automatically but without blocking
-      if (segment.segment_type === 'bot') {
-        // Update local state to show generating status
-        if (onUpdate) {
-          onUpdate({
-            ...response.data,
-            isGeneratingSpeech: true
-          });
-        }
-        
-        // Generate speech in the background
-        handleGenerateSpeechWithText(newText)
-          .catch(err => {
-            console.error('Background speech generation failed:', err);
-          });
-      }
-    } catch (err) {
-      setError('Failed to update text');
-      console.error('Error updating segment text:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Helper to generate speech with the latest text
   const handleGenerateSpeechWithText = async (text) => {
     if (!text) return;
@@ -88,7 +49,7 @@ const SegmentItem = ({
       await generateSpeech(text, outputPath);
       
       // Update segment with new audio path
-      const updatedSegment = {
+      const segmentData = {
         ...segment,
         audio_path: outputPath,
         text_content: text,
@@ -106,55 +67,6 @@ const SegmentItem = ({
           ...response.data,
           isGeneratingSpeech: false
         });
-      }
-    } catch (err) {
-      setError('Failed to generate speech');
-      console.error('Error generating speech:', err);
-      
-      // Update state to remove loading state even if generation fails
-      if (onUpdate) {
-        onUpdate({
-          ...segment,
-          isGeneratingSpeech: false
-        });
-      }
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleGenerateSpeech = async () => {
-    if (!segment.text_content) return;
-    
-    try {
-      setIsGenerating(true);
-      setError(null);
-      
-      // For bot segments, generate speech from text
-      if (segment.segment_type === 'bot') {
-        // Update UI to show generating state
-        if (onUpdate) {
-          onUpdate({
-            ...segment,
-            isGeneratingSpeech: true
-          });
-        }
-        
-        const outputPath = `/episodes/${episodeId}/segments/${segment.id}.mp3`;
-        await generateSpeech(segment.text_content, outputPath);
-        
-        // Update segment with new audio path
-        const response = await updateSegment(episodeId, segment.id, {
-          audio_path: outputPath
-        });
-        
-        // Notify parent with combined data
-        if (onUpdate) {
-          onUpdate({
-            ...response.data,
-            isGeneratingSpeech: false
-          });
-        }
       }
     } catch (err) {
       setError('Failed to generate speech');
