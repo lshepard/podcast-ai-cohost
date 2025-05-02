@@ -121,13 +121,15 @@ class TranscribeResponse(BaseModel):
 
 
 class GenerateSpeechRequest(BaseModel):
-    text: str = Field(..., description="Text to convert to speech")
-    output_path: str = Field(..., description="Path to save the generated audio")
+    text: str = Field(..., description="Text content to convert to speech")
+    episode_id: int = Field(..., description="ID of the episode")
+    segment_id: int = Field(..., description="ID of the segment")
 
 
 class GenerateSpeechResponse(BaseModel):
     success: bool
     message: str
+    file_path: Optional[str] = None
 
 
 # LLM generation schemas

@@ -1,4 +1,6 @@
 import os
+import uuid
+import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -9,7 +11,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_db
-from app.lib.audio import generate_speech, transcribe_audio
+from app.lib.audio import generate_speech, transcribe_audio, check_elevenlabs_key
 
 router = APIRouter()
 
@@ -31,10 +33,36 @@ async def transcribe_audio_file(
 @router.post("/audio/synthesize", response_model=schemas.GenerateSpeechResponse)
 async def synthesize_speech(
     request: schemas.GenerateSpeechRequest,
+    db: Session = Depends(get_db),
     _: str = Depends(get_current_user),
 ):
     """Generate speech from text using ElevenLabs."""
-    success, message, file_path = generate_speech(request.text, request.output_path)
+    
+    # Check if segment exists
+    db_segment = (
+        db.query(models.Segment)
+        .filter(models.Segment.episode_id == request.episode_id, models.Segment.id == request.segment_id)
+        .first()
+    )
+    if db_segment is None:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    # Generate a unique filename with a random component
+    unique_id = str(uuid.uuid4())[:8]  # Use first 8 chars of UUID for brevity
+    output_path = f"/episodes/{request.episode_id}/segments/{request.segment_id}_{unique_id}.mp3"
+    
+    # Generate the speech
+    success, message, file_path = generate_speech(request.text, output_path)
+    
+    if success and file_path:
+        # Update the segment with the audio path
+        db_segment.audio_path = output_path
+        db.commit()
+    else:
+        # Log error message for troubleshooting
+        logger = logging.getLogger(__name__)
+        logger.error(f"Speech generation failed: {message}")
+    
     return {
         "success": success,
         "message": message,
@@ -87,4 +115,31 @@ async def upload_audio(
             db_segment.text_content = transcription
             db.commit()
     
-    return {"success": True, "message": "Audio uploaded successfully", "file_path": file_path} 
+    return {"success": True, "message": "Audio uploaded successfully", "file_path": file_path}
+
+
+@router.get("/audio/test-elevenlabs")
+async def test_elevenlabs(
+    _: str = Depends(get_current_user),
+):
+    """Test ElevenLabs API connection and voice availability."""
+    
+    # Check API key validity
+    key_valid, key_message = check_elevenlabs_key()
+    
+    # Specific voice ID test
+    specific_voice_id = "jHVm0BlYCoqPpa5khLNP"  # Sarah montana voice ID
+    
+    # Test a short text-to-speech conversion
+    test_text = "This is a test of the ElevenLabs integration."
+    test_output_path = f"/episodes/test/elevenlabs_test_{uuid.uuid4()}.mp3"
+    
+    tts_success, tts_message, tts_path = generate_speech(test_text, test_output_path)
+    
+    return {
+        "api_key_valid": key_valid,
+        "api_key_message": key_message,
+        "speech_generation_success": tts_success,
+        "speech_generation_message": tts_message,
+        "test_file_path": tts_path
+    } 

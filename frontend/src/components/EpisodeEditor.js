@@ -326,20 +326,24 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
         )
       );
       
-      // Generate the speech
-      const outputPath = `/episodes/${episodeId}/segments/${segmentId}.mp3`;
-      await generateSpeech(text, outputPath);
+      // Generate the speech with the updated API
+      const response = await generateSpeech(text, episodeId, segmentId);
       
-      // Update the segment with the audio path
-      await updateSegment(episodeId, segmentId, {
-        audio_path: outputPath
-      });
-      
-      // Refresh to get the latest data
-      await fetchEpisodeData();
+      if (response.data.success) {
+        // No need to update the segment with audio_path, it's already done by the backend
+        // Just refresh to get the latest data
+        await fetchEpisodeData();
+      } else {
+        // Show the specific error message from the backend
+        const errorMessage = response.data.message || 'Failed to generate speech';
+        console.error('Audio generation error:', errorMessage);
+        showNotification(`Audio generation failed: ${errorMessage}`, 'error');
+        throw new Error(errorMessage);
+      }
     } catch (err) {
       console.error('Error generating speech:', err);
-      showNotification('Audio generation failed', 'warning');
+      const errorMessage = err.response?.data?.message || err.message || 'Unknown error';
+      showNotification(`Audio generation failed: ${errorMessage}`, 'error');
       
       // Update segments to remove loading state
       setSegments(prevSegments => 
@@ -491,7 +495,7 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
       // Close dialog immediately
       setEditDialogOpen(false);
       
-      // Update in database
+      // Update text content in database
       await updateSegment(episodeId, segmentId, {
         text_content: newText
       });

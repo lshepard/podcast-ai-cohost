@@ -45,31 +45,32 @@ const SegmentItem = ({
       setIsGenerating(true);
       setError(null);
       
-      const outputPath = `/episodes/${episodeId}/segments/${segment.id}.mp3`;
-      await generateSpeech(text, outputPath);
+      // Use the updated API to generate speech
+      const response = await generateSpeech(text, episodeId, segment.id);
       
-      // Update segment with new audio path
-      const segmentData = {
-        ...segment,
-        audio_path: outputPath,
-        text_content: text,
-        isGeneratingSpeech: false
-      };
-      
-      // Only update the audio_path in the database
-      const response = await updateSegment(episodeId, segment.id, {
-        audio_path: outputPath
-      });
-      
-      // Notify parent with combined local and server data
-      if (onUpdate) {
-        onUpdate({
-          ...response.data,
+      if (response.data.success) {
+        // Segment has been updated in the database by the backend
+        // Get the updated data from the response
+        const updatedSegment = {
+          ...segment,
+          audio_path: response.data.file_path,
+          text_content: text,
           isGeneratingSpeech: false
-        });
+        };
+        
+        // Notify parent with updated data
+        if (onUpdate) {
+          onUpdate(updatedSegment);
+        }
+      } else {
+        // Show the specific error message from the backend
+        const errorMessage = response.data.message || 'Failed to generate speech';
+        setError(`Speech generation failed: ${errorMessage}`);
+        throw new Error(errorMessage);
       }
     } catch (err) {
-      setError('Failed to generate speech');
+      const errorMessage = err.response?.data?.message || err.message || 'Unknown error';
+      setError(`Failed to generate speech: ${errorMessage}`);
       console.error('Error generating speech:', err);
       
       // Update state to remove loading state even if generation fails

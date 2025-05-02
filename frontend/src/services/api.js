@@ -40,7 +40,7 @@ export const deleteSegment = (episodeId, segmentId) => api.delete(`/episodes/${e
 
 // Audio API
 export const transcribeAudio = (filePath) => api.post('/audio/transcribe', { file_path: filePath });
-export const generateSpeech = (text, outputPath) => api.post('/audio/synthesize', { text, output_path: outputPath });
+export const generateSpeech = (text, episodeId, segmentId) => api.post('/audio/synthesize', { text, episode_id: episodeId, segment_id: segmentId });
 export const uploadAudio = (episodeId, segmentId, file) => {
   const formData = new FormData();
   formData.append('file', file);

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -7,6 +7,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import os
 import logging
+import sys
+from logging.handlers import RotatingFileHandler
 
 from app.api.routes import audio, episodes, generate, segments, sources
 from app.core.config import settings
@@ -16,8 +18,22 @@ from app.admin import mount_admin
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        # Console handler
+        logging.StreamHandler(sys.stdout),
+        # File handler with rotation
+        RotatingFileHandler(
+            os.path.join(settings.DATA_DIR, 'app.log'),
+            maxBytes=10*1024*1024,  # 10 MB
+            backupCount=5,
+            encoding='utf-8'
+        )
+    ]
 )
+
+# Set specific logger levels
+logging.getLogger('app.lib.audio').setLevel(logging.DEBUG)
 
 # Initialize the database
 init_db()
