@@ -27,7 +27,7 @@ class Config:
     DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR}/app.db")
     
     # LLM Configuration
-    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
+    LLM_MODEL = os.getenv("LLM_MODEL")
     
     # AI Services
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

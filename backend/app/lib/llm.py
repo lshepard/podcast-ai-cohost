@@ -12,6 +12,43 @@ from app.core.config import settings
 client = wrap_openai(OpenAI(api_key=settings.OPENAI_API_KEY)) if settings.OPENAI_API_KEY else None
 
 
+def call_gpt_41(client, messages, temperature=0.7, max_tokens=1500):
+    """Helper function to call GPT-4.1 with specific parameters.
+    
+    Args:
+        client: OpenAI client
+        messages: List of messages for the conversation
+        temperature: Temperature parameter for generation
+        max_tokens: Maximum number of tokens to generate
+        
+    Returns:
+        The API response
+    """
+    return client.chat.completions.create(
+        model="gpt-4.1",
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+
+def call_gpt_o4_mini(client, messages, temperature=0.7):
+    """Helper function to call GPT-O4-mini with specific parameters.
+    
+    Args:
+        client: OpenAI client
+        messages: List of messages for the conversation
+        temperature: Temperature parameter for generation
+        
+    Returns:
+        The API response
+    """
+    return client.chat.completions.create(
+        model="o4-mini",
+        messages=messages
+    )
+
+
 @retry(wait=wait_exponential(min=1, max=10), stop=stop_after_attempt(3))
 @traceable
 async def generate_response(prompt: str, context: str = None, history: List[Dict] = None) -> str:
@@ -42,13 +79,20 @@ async def generate_response(prompt: str, context: str = None, history: List[Dict
         # Add the current prompt
         messages.append({"role": "user", "content": prompt})
         
-        # Generate response
-        response = client.chat.completions.create(
-            model=settings.LLM_MODEL,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1500,
-        )
+        # Call appropriate model based on settings
+        model_name = settings.LLM_MODEL.lower()
+        if model_name == "gpt-4.1":
+            response = call_gpt_41(client, messages, temperature=0.7, max_tokens=1500)
+        elif model_name == "o4-mini":
+            response = call_gpt_o4_mini(client, messages, temperature=0.7)
+        else:
+            # Fallback to direct call for other models
+            response = client.chat.completions.create(
+                model=settings.LLM_MODEL,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1500,
+            )
         
         # Extract the generated text
         return response.choices[0].message.content
@@ -87,6 +131,10 @@ Communication style:
 - Ask provocative questions that advance the conversation
 - Respond directly to your co-host's points before adding your own perspective
 - Avoid radio clichés, corporate language, or AI-sounding phrases
+- Your responses must be in natural spoken language as they will be read aloud
+- Do NOT use markdown, bullet points, numbering, or any text formatting in your responses
+- Instead of structured outlines, describe topics conversationally as you would in natural speech
+- Example: "So for today, we're going to first discuss X, then dive into Y, before wrapping up with Z"
 
 NEVER say things like "As an AI," "I'm not a real person," or "my programming." You're Emerald, a podcast host with a distinct personality and background.
 """
