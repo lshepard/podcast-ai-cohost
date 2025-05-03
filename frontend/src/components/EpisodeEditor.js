@@ -80,7 +80,7 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
   const [insertPosition, setInsertPosition] = useState(null);
   
   // States for adding segments
-  const [setRecordedAudioBlob] = useState(null);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState(null);
   const [botPrompt, setBotPrompt] = useState('');
   const [botResponse, setBotResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -188,6 +188,7 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     setBotResponse('');
     setIsGenerating(false);
     setInsertPosition(null);
+    setSkippedGeneration(false);
   };
 
   const handleAudioRecorded = (blob) => {
@@ -640,6 +641,9 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     }
   }, [playAllEnabled]);
 
+  // Add at the top, after other useState hooks
+  const [skippedGeneration, setSkippedGeneration] = useState(false);
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -988,42 +992,57 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
           </DialogTitle>
           <DialogContent>
             <Box sx={{ my: 2 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Optional Prompt
-              </Typography>
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                placeholder="Enter a prompt for the AI (leave empty for default generation)"
-                value={botPrompt}
-                onChange={(e) => setBotPrompt(e.target.value)}
-                disabled={isGenerating}
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                sx={{ mt: 2 }}
-                onClick={() => handleGenerateResponse()}
-                disabled={isGenerating}
-                startIcon={isGenerating ? <CircularProgress size={20} /> : <SmartToyIcon />}
-              >
-                {isGenerating ? 'Generating...' : 'Generate Response'}
-              </Button>
+              {!skippedGeneration && (
+                <>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Optional Prompt
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    placeholder="Enter a prompt for the AI (leave empty for default generation)"
+                    value={botPrompt}
+                    onChange={(e) => setBotPrompt(e.target.value)}
+                    disabled={isGenerating}
+                  />
+                  <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => handleGenerateResponse()}
+                      disabled={isGenerating}
+                      startIcon={isGenerating ? <CircularProgress size={20} /> : <SmartToyIcon />}
+                    >
+                      {isGenerating ? 'Generating...' : 'Generate Response'}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      onClick={() => {
+                        setSkippedGeneration(true);
+                        setBotResponse('');
+                      }}
+                      disabled={isGenerating}
+                    >
+                      Skip Generation
+                    </Button>
+                  </Box>
+                </>
+              )}
+              {(botResponse || skippedGeneration) && (
+                <Box sx={{ mt: 3 }}>
+                  <TextEditor
+                    text={botResponse}
+                    title="AI Response"
+                    onSave={(text) => setBotResponse(text)}
+                  />
+                </Box>
+              )}
             </Box>
-            
-            {botResponse && (
-              <Box sx={{ mt: 3 }}>
-                <TextEditor
-                  text={botResponse}
-                  title="AI Response"
-                  onSave={(text) => setBotResponse(text)}
-                />
-              </Box>
-            )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleBotDialogClose}>Cancel</Button>
+            <Button onClick={() => { handleBotDialogClose(); setSkippedGeneration(false); }}>Cancel</Button>
             <Button 
               onClick={handleSaveBot} 
               variant="contained" 

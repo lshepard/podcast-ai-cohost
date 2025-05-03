@@ -76,6 +76,7 @@ const useAudioRecorder = () => {
     error,
     startRecording,
     stopRecording,
+    setAudioBlob,
   };
 };
 

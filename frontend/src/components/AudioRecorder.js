@@ -13,7 +13,7 @@ import useAudioRecorder from '../hooks/useAudioRecorder';
 import AudioPlayer from './AudioPlayer';
 
 const AudioRecorder = ({ onAudioRecorded, onAudioUploaded, episodeId, segmentId }) => {
-  const { isRecording, audioBlob, error, startRecording, stopRecording } = useAudioRecorder();
+  const { isRecording, audioBlob, error, startRecording, stopRecording, setAudioBlob } = useAudioRecorder();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [localAudioUrl, setLocalAudioUrl] = useState(null);
@@ -43,7 +43,7 @@ const AudioRecorder = ({ onAudioRecorded, onAudioUploaded, episodeId, segmentId 
     if (file) {
       const url = URL.createObjectURL(file);
       setLocalAudioUrl(url);
-      
+      setAudioBlob(file);
       if (onAudioRecorded) {
         onAudioRecorded(file);
       }
@@ -52,14 +52,14 @@ const AudioRecorder = ({ onAudioRecorded, onAudioUploaded, episodeId, segmentId 
 
   // Handle audio upload to server
   const handleUpload = async () => {
-    if (!audioBlob && !localAudioUrl) return;
+    if (!audioBlob) return;
     
     setIsUploading(true);
     
     try {
       // Call the onAudioUploaded callback with the audio blob
       if (onAudioUploaded) {
-        await onAudioUploaded(audioBlob || localAudioUrl, episodeId, segmentId);
+        await onAudioUploaded(audioBlob, episodeId, segmentId);
       }
     } catch (err) {
       console.error('Error uploading audio:', err);

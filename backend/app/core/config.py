@@ -31,6 +31,7 @@ class Config:
     
     # AI Services
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")  # Added for Gemini support
     ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
     ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY", "")
     

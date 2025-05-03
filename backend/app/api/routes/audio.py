@@ -93,8 +93,9 @@ async def upload_audio(
     segments_dir = os.path.join(episode_dir, "segments")
     os.makedirs(segments_dir, exist_ok=True)
     
-    # Save the uploaded file
-    file_path = os.path.join(segments_dir, f"{segment_id}_raw.wav")
+    # Save the uploaded file with its original extension
+    orig_ext = os.path.splitext(file.filename)[1] or ".wav"
+    file_path = os.path.join(segments_dir, f"{segment_id}_raw{orig_ext}")
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
     
@@ -103,7 +104,7 @@ async def upload_audio(
     
     # Also set the audio_path to be the same as raw_audio_path for human segments
     # This ensures the audio can be played back in the UI
-    relative_path = f"/episodes/{episode_id}/segments/{segment_id}_raw.wav"
+    relative_path = f"/episodes/{episode_id}/segments/{segment_id}_raw{orig_ext}"
     db_segment.audio_path = relative_path
     
     db.commit()
