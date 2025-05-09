@@ -34,6 +34,7 @@ async def generate_text(
     previous_segments = (
         db.query(models.Segment)
         .filter(models.Segment.episode_id == request.episode_id)
+        .filter(models.Segment.order_index < request.order_index)
         .order_by(models.Segment.order_index)
         .all()
     )

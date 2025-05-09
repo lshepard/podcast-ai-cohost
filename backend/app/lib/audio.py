@@ -96,12 +96,12 @@ def generate_speech(text: str, output_path: str) -> Tuple[bool, str, Optional[st
     """
     try:
         # Hard-coded ElevenLabs settings
-        voice = "jHVm0BlYCoqPpa5khLNP" # Sarah montana
+        voice = settings.ELEVENLABS_VOICE_ID
         model = "eleven_multilingual_v2"
-        speed = 1.3
-        stability = 0.3
-        similarity = 0.8
-        style_exaggeration = 0.3
+        speed = 1.1
+        stability = 0.4
+        similarity = 0.7
+        style_exaggeration = 0.2
 
         # Log key parameters
         logger.debug(f"ElevenLabs API Key: {'*****' + settings.ELEVENLABS_API_KEY[-4:] if settings.ELEVENLABS_API_KEY else 'Not set'}")
@@ -150,6 +150,7 @@ def generate_speech(text: str, output_path: str) -> Tuple[bool, str, Optional[st
                 text=text,
                 model_id=model,
                 voice_settings=VoiceSettings(
+                    speed=speed,
                     stability=stability,
                     similarity_boost=similarity,
                     style=style_exaggeration,

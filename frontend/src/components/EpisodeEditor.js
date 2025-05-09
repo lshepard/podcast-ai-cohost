@@ -195,6 +195,8 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     setRecordedAudioBlob(blob);
   };
 
+  const [scrollToSegmentId, setScrollToSegmentId] = useState(null);
+
   const handleAudioUploaded = async (blob, episodeId, segmentId) => {
     try {
       // First create a segment
@@ -204,34 +206,31 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
         if (insertPosition !== null && insertPosition >= 0) {
           segmentIndex = insertPosition;
         }
-        
         const newSegmentData = {
           segment_type: 'human',
           order_index: segmentIndex,
           text_content: ''
         };
-        
         const segmentResponse = await createSegment(episodeId, newSegmentData);
         segmentId = segmentResponse.data.id;
-        
         // If inserting in the middle, update order_index of subsequent segments
         if (insertPosition !== null && insertPosition < segments.length) {
           await updateSegmentOrders(segments, insertPosition, true);
         }
+        // Set scroll target to new segment
+        setScrollToSegmentId(segmentId.toString());
+      } else {
+        // Set scroll target to existing segment
+        setScrollToSegmentId(segmentId.toString());
       }
-      
       // Upload the audio file
       const formData = new FormData();
       formData.append('file', blob);
-      
       await uploadAudio(episodeId, segmentId, blob);
-      
       // Refresh segments
       await fetchEpisodeData();
-      
       // Close dialog
       handleHumanDialogClose();
-      
       showNotification('Human segment added successfully', 'success');
     } catch (err) {
       console.error('Error uploading audio:', err);
@@ -242,10 +241,12 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
   const handleGenerateResponse = async (prompt) => {
     setIsGenerating(true);
     setBotResponse('');
-    
     try {
-      const response = await generateText(episodeId, prompt || botPrompt);
-      
+      let segmentIndex = segments.length;
+      if (insertPosition !== null && insertPosition >= 0) {
+        segmentIndex = insertPosition;
+      }
+      const response = await generateText(episodeId, prompt || botPrompt, segmentIndex);
       if (response.data.success && response.data.text) {
         setBotResponse(response.data.text);
       } else {
@@ -261,35 +262,30 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
 
   const handleSaveBot = async () => {
     if (!botResponse) return;
-    
     try {
       // If we're inserting at a specific position, handle reordering
       let segmentIndex = segments.length;
       if (insertPosition !== null && insertPosition >= 0) {
         segmentIndex = insertPosition;
       }
-      
       // Create and save the segment immediately
       const newSegmentData = {
         segment_type: 'bot',
         order_index: segmentIndex,
         text_content: botResponse
       };
-      
       const response = await createSegment(episodeId, newSegmentData);
       const newSegment = response.data;
-      
       // If inserting in the middle, update order_index of subsequent segments
       if (insertPosition !== null && insertPosition < segments.length) {
         await updateSegmentOrders(segments, insertPosition, true);
       }
-      
+      // Set scroll target to new segment
+      setScrollToSegmentId(newSegment.id.toString());
       // Close the dialog immediately
       handleBotDialogClose();
-      
       // Show initial success message
       showNotification('AI segment saved successfully', 'success');
-      
       // Add the new segment to the list without waiting for audio
       setSegments(prevSegments => {
         const newSegments = [...prevSegments];
@@ -298,7 +294,6 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
           ...newSegment, 
           id: newSegment.id.toString()
         };
-        
         if (insertPosition !== null && insertPosition >= 0) {
           newSegments.splice(insertPosition, 0, newSegmentWithId);
         } else {
@@ -306,7 +301,6 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
         }
         return newSegments;
       });
-      
       // Generate speech asynchronously
       generateAudioForSegment(newSegment.id, botResponse);
     } catch (err) {
@@ -643,6 +637,17 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
 
   // Add at the top, after other useState hooks
   const [skippedGeneration, setSkippedGeneration] = useState(false);
+
+  // Scroll to the segment after segments update if needed
+  useEffect(() => {
+    if (scrollToSegmentId && segments.length > 0) {
+      const el = document.getElementById(`segment-${scrollToSegmentId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setScrollToSegmentId(null);
+      }
+    }
+  }, [segments, scrollToSegmentId]);
 
   if (isLoading) {
     return (

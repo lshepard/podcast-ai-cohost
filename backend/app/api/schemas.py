@@ -136,6 +136,7 @@ class GenerateSpeechResponse(BaseModel):
 class GenerateTextRequest(BaseModel):
     prompt: str = Field(..., description="Prompt for text generation")
     episode_id: int = Field(..., description="Episode ID for context")
+    order_index: int = Field(..., description="Order index of the current segment")
     history: Optional[list] = Field(default=[], description="Previous conversation history")
 
 

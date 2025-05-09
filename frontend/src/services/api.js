@@ -52,7 +52,7 @@ export const uploadAudio = (episodeId, segmentId, file) => {
 };
 
 // LLM API
-export const generateText = (episodeId, prompt, history = []) => 
-  api.post('/generate', { episode_id: episodeId, prompt, history });
+export const generateText = (episodeId, prompt, order_index, history = []) => 
+  api.post('/generate', { episode_id: episodeId, prompt, order_index, history });
 
 export default api; 
