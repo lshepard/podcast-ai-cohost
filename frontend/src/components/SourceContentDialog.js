@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
+import { uploadPdf } from '../services/api';
 
 const SourceType = {
   WEB: 'web',
@@ -161,24 +162,31 @@ const SourceContentDialog = ({
             source_type: SourceType.WEB,
             url,
           };
+          await onSubmit(sourceData);
           break;
         case SourceType.PDF:
-          sourceData = {
-            source_type: SourceType.PDF,
-            url: url || null,
-            file_path: file ? file.name : null,
-          };
+          if (file) {
+            // Use the uploadPdf function from the API service
+            const result = await uploadPdf(file);
+            await onSubmit(result.data);
+          } else if (url) {
+            // Handle PDF URL through the regular source creation endpoint
+            sourceData = {
+              source_type: SourceType.PDF,
+              url,
+            };
+            await onSubmit(sourceData);
+          }
           break;
         case SourceType.TEXT:
           sourceData = {
             source_type: SourceType.TEXT,
             content: text,
           };
+          await onSubmit(sourceData);
           break;
       }
 
-      console.log('Creating source with data:', sourceData);
-      await onSubmit(sourceData);
       console.log('Source created successfully');
       onClose();
     } catch (err) {

@@ -1,5 +1,6 @@
 from typing import List
 import logging
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
@@ -8,12 +9,64 @@ from app.api.deps import get_current_user
 from app.db import models
 from app.db.session import get_db
 from app.lib.web import process_web_source
+from app.lib.pdf import process_pdf_source
 from app.lib.token_counter import count_tokens
+from app.core.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.post("/sources/upload-pdf", response_model=schemas.Source)
+async def upload_pdf(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Upload and process a PDF file."""
+    try:
+        # Create uploads directory if it doesn't exist
+        uploads_dir = os.path.join(settings.DATA_DIR, "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        # Save the uploaded file
+        file_path = os.path.join(uploads_dir, file.filename)
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # Process the PDF
+        result = await process_pdf_source(file_path)
+        if not result['success']:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result.get('error', 'Failed to process PDF')
+            )
+        
+        # Create the source
+        source_dict = {
+            'source_type': models.SourceType.PDF,
+            'title': file.filename,
+            'content': result['content'],
+            'summary': result['summary'],
+            'file_path': file_path,
+            'token_count': count_tokens(result['content']) if result['content'] else None
+        }
+        
+        db_source = models.Source(**source_dict)
+        db.add(db_source)
+        db.commit()
+        db.refresh(db_source)
+        return db_source
+        
+    except Exception as e:
+        logger.error(f"Error processing PDF: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing PDF: {str(e)}"
+        )
 
 
 @router.post("/sources", response_model=schemas.Source)

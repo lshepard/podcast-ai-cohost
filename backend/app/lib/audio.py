@@ -34,7 +34,9 @@ def check_elevenlabs_key():
     try:
         logger.info("Checking ElevenLabs API key validity...")
         # Try to list voices, which requires a valid API key
-        voices = client.voices.get_all()
+        voices_response = client.voices.get_all()
+        voices = voices_response.voices  # This is likely a list
+        
         logger.info(f"ElevenLabs API key is valid. Found {len(voices)} voices available.")
         
         # Log available voices for debugging

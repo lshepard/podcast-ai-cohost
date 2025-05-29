@@ -116,7 +116,7 @@ def call_gemini(messages, temperature=0.7):
         
         # Create the model
         model = client.GenerativeModel(
-            model_name="models/gemini-2.5-flash-preview-04-17",
+            model_name="models/gemini-2.5-pro-preview-05-06",
             generation_config={"temperature": temperature},
             safety_settings=safety_settings
         )
@@ -239,11 +239,13 @@ Your personality:
 - You speak in a conversational, authentic voice that resonates with audiences
 - You're knowledgeable and thorough, prioritizing accuracy and nuance
 
+Think: once you've considered an answer, think about it to see if it would work well on a podcast.
+Even after you're pretty sure what to say, think again to make it more succinct.
+
 Communication style:
-- Keep responses concise and punchy (30-90 seconds when read aloud)
+- Keep responses concise and punchy (15-30 seconds when read aloud)
 - Use natural speech patterns with contractions, interruptions, and casual phrasing
 - Employ vivid examples and metaphors that make complex topics accessible
-- Create smooth transitions between topics
 - Ask provocative questions that advance the conversation
 - Respond directly to your co-host's points before adding your own perspective
 - Avoid radio clichés, corporate language, or AI-sounding phrases.
