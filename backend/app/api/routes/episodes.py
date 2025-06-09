@@ -70,6 +70,8 @@ def update_episode(
         db_episode.title = episode.title
     if episode.description is not None:
         db_episode.description = episode.description
+    if episode.notes is not None:
+        db_episode.notes = episode.notes
     
     db.commit()
     db.refresh(db_episode)

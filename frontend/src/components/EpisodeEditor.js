@@ -56,16 +56,16 @@ import {
   generateText,
   generateSpeech,
   uploadVideo,
+  updateEpisode,
 } from '../services/api';
 import EpisodeSources from './EpisodeSources';
 import NotesEditor from './NotesEditor';
 import VideoRecorder from './VideoRecorder';
-import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
-const EpisodeEditor = ({ episodeId, onSave }) => {
+const EpisodeEditor = ({ episodeId }) => {
   const [episode, setEpisode] = useState(null);
   const [segments, setSegments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -522,20 +522,8 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
 
   const handleSaveNotes = async (notes) => {
     try {
-      const response = await fetch(`${API_URL}/episodes/${episodeId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ notes }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save notes');
-      }
-
-      const updatedEpisode = await response.json();
-      onSave(updatedEpisode);
+      const response = await updateEpisode(episodeId, { notes });
+      setEpisode(response.data);
     } catch (error) {
       console.error('Error saving notes:', error);
       // Handle error (e.g., show notification)
@@ -558,20 +546,8 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
 
   const handleSaveTitle = async () => {
     try {
-      const response = await fetch(`${API_URL}/episodes/${episodeId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title: editedTitle }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save title');
-      }
-
-      const updatedEpisode = await response.json();
-      onSave(updatedEpisode);
+      const response = await updateEpisode(episodeId, { title: editedTitle });
+      setEpisode(response.data);
       setIsEditingTitle(false);
     } catch (error) {
       console.error('Error saving title:', error);
@@ -581,20 +557,8 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
 
   const handleSaveDescription = async () => {
     try {
-      const response = await fetch(`${API_URL}/episodes/${episodeId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ description: editedDescription }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save description');
-      }
-
-      const updatedEpisode = await response.json();
-      onSave(updatedEpisode);
+      const response = await updateEpisode(episodeId, { description: editedDescription });
+      setEpisode(response.data);
       setIsEditingDescription(false);
     } catch (error) {
       console.error('Error saving description:', error);
