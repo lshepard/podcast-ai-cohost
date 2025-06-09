@@ -17,19 +17,6 @@ from app.lib.audio import generate_speech, transcribe_audio, check_elevenlabs_ke
 router = APIRouter()
 
 
-@router.post("/audio/transcribe", response_model=schemas.TranscribeResponse)
-async def transcribe_audio_file(
-    request: schemas.TranscribeRequest,
-    _: str = Depends(get_current_user),
-):
-    """Transcribe an audio file using AssemblyAI."""
-    success, message, transcription = transcribe_audio(request.file_path)
-    return {
-        "success": success,
-        "message": message,
-        "transcription": transcription,
-    }
-
 
 @router.post("/audio/synthesize", response_model=schemas.GenerateSpeechResponse)
 async def synthesize_speech(
@@ -215,14 +202,24 @@ async def upload_video(
         duration = int(video.duration * 1000)  # Convert to milliseconds
         video.close()
         db_segment.duration = duration
-        
+
+        # Transcribe the video if it's a human segment
+        transcription_result = None
+        if db_segment.segment_type == models.SegmentType.HUMAN:
+            success, message, transcription = transcribe_audio(video_path)
+            transcription_result = {"success": success, "message": message}
+            if success and transcription:
+                db_segment.text_content = transcription
+                db.commit()
+
         db.commit()
         
         return {
             "success": True,
             "message": "Video uploaded successfully",
             "video_path": relative_video_path,
-            "duration": duration
+            "duration": duration,
+            "transcription": transcription_result
         }
         
     except Exception as e:
