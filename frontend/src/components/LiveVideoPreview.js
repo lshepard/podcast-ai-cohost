@@ -1,25 +1,31 @@
 import React, { useRef, useEffect } from 'react';
 
-const LiveVideoPreview = ({ isActive }) => {
+const LiveVideoPreview = ({ isActive, stream }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
-    let stream;
+    let localStream;
     if (isActive) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(s => {
-          stream = s;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        });
+      if (stream) {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } else {
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          .then(s => {
+            localStream = s;
+            if (videoRef.current) {
+              videoRef.current.srcObject = localStream;
+            }
+          });
+      }
     }
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isActive]);
+  }, [isActive, stream]);
 
   if (!isActive) return null;
 
@@ -29,7 +35,7 @@ const LiveVideoPreview = ({ isActive }) => {
       autoPlay
       muted
       playsInline
-      style={{ width: '100%', maxHeight: 360, background: '#000', borderRadius: 4 }}
+      style={{ width: '100%', maxHeight: 360, background: '#000', borderRadius: 4, transform: 'scaleX(-1)' }}
     />
   );
 };

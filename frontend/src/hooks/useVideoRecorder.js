@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const useVideoRecorder = () => {
+const useVideoRecorder = (externalStream = null) => {
   const [isRecording, setIsRecording] = useState(false);
   const [videoBlob, setVideoBlob] = useState(null);
   const [error, setError] = useState(null);
@@ -8,6 +8,7 @@ const useVideoRecorder = () => {
   const mediaRecorderRef = useRef(null);
   const videoChunksRef = useRef([]);
   const streamRef = useRef(null);
+  const usedExternalStream = useRef(false);
   
   // Start recording
   const startRecording = async () => {
@@ -17,12 +18,17 @@ const useVideoRecorder = () => {
       setError(null);
       videoChunksRef.current = [];
       
-      // Get camera and microphone permissions
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true,
-        audio: true 
-      });
-      streamRef.current = stream;
+      let stream = externalStream;
+      if (stream) {
+        usedExternalStream.current = true;
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: true,
+          audio: true 
+        });
+        streamRef.current = stream;
+        usedExternalStream.current = false;
+      }
       
       // Create media recorder
       const mediaRecorder = new MediaRecorder(stream, {
@@ -42,8 +48,8 @@ const useVideoRecorder = () => {
         const videoBlob = new Blob(videoChunksRef.current, { type: 'video/webm' });
         setVideoBlob(videoBlob);
         
-        // Stop all tracks in the stream
-        if (streamRef.current) {
+        // Only stop tracks if we created the stream
+        if (streamRef.current && !usedExternalStream.current) {
           streamRef.current.getTracks().forEach((track) => track.stop());
           streamRef.current = null;
         }
@@ -69,7 +75,7 @@ const useVideoRecorder = () => {
   // Clean up on component unmount
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
+      if (streamRef.current && !usedExternalStream.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
