@@ -2,8 +2,8 @@ import os
 import uuid
 import logging
 from typing import List
+import subprocess
 from moviepy import VideoFileClip
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -171,16 +171,46 @@ async def upload_video(
     os.makedirs(segments_dir, exist_ok=True)
     
     try:
-        # Save the uploaded video file
-        video_path = os.path.join(segments_dir, f"{segment_id}_video.mp4")
+        # Save the uploaded video file with its original extension
+        orig_ext = os.path.splitext(file.filename)[1] or ".webm"
+        video_path = os.path.join(segments_dir, f"{segment_id}_video{orig_ext}")
+        print(f"[DEBUG] Saving uploaded video to: {video_path}")
         with open(video_path, "wb") as buffer:
-            buffer.write(await file.read())
+            content = await file.read()
+            print(f"[DEBUG] Uploaded file size: {len(content)} bytes")
+            buffer.write(content)
+        print(f"[DEBUG] File written: {os.path.exists(video_path)}")
+        
+        # Convert WebM to MP4 if needed
+        if orig_ext.lower() == '.webm':
+            mp4_path = os.path.join(segments_dir, f"{segment_id}_video.mp4")
+            print(f"[DEBUG] Converting WebM to MP4: {mp4_path}")
+            cmd = [
+                'ffmpeg',
+                '-i', video_path,
+                '-c:v', 'libx264',  # Use H.264 codec
+                '-preset', 'fast',  # Faster encoding
+                '-crf', '23',       # Good quality
+                '-c:a', 'aac',      # Convert audio to AAC
+                '-b:a', '128k',     # Audio bitrate
+                mp4_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"[ERROR] ffmpeg conversion failed: {result.stderr}")
+                raise Exception("Failed to convert video format")
+            
+            # Use the MP4 file for duration and storage
+            video_path = mp4_path
+            relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video.mp4"
+        else:
+            relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video{orig_ext}"
         
         # Update segment with the video path
-        relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video.mp4"
         db_segment.video_path = relative_video_path
         
         # Get video duration using moviepy
+        print(f"[DEBUG] Getting video duration for {video_path}")
         video = VideoFileClip(video_path)
         duration = int(video.duration * 1000)  # Convert to milliseconds
         video.close()
@@ -196,7 +226,12 @@ async def upload_video(
         }
         
     except Exception as e:
-        # Clean up file if processing fails
+        print(f"[ERROR] Exception during video upload: {e}")
+        # Clean up files if processing fails
         if os.path.exists(video_path):
+            print(f"[DEBUG] Removing file due to error: {video_path}")
             os.remove(video_path)
+        if 'mp4_path' in locals() and os.path.exists(mp4_path):
+            print(f"[DEBUG] Removing converted file due to error: {mp4_path}")
+            os.remove(mp4_path)
         raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}") 
