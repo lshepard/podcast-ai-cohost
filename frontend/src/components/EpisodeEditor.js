@@ -704,54 +704,6 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     }
   };
 
-  const renderSegmentContent = (segment) => {
-    if (segment.segment_type === 'HUMAN') {
-      return (
-        <Box sx={{ mt: 2 }}>
-          {segment.video_path ? (
-            <VideoPlayer
-              videoUrl={`${process.env.REACT_APP_API_URL}${segment.video_path}`}
-              onReady={() => {}}
-            />
-          ) : segment.audio_path ? (
-            <AudioPlayer
-              audioUrl={`${process.env.REACT_APP_API_URL}${segment.audio_path}`}
-              onReady={() => {}}
-            />
-          ) : (
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={() => setRecordingType('audio')}
-                startIcon={<PlayArrowIcon />}
-              >
-                Record Audio
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setRecordingType('video')}
-                startIcon={<PlayArrowIcon />}
-              >
-                Record Video
-              </Button>
-            </Box>
-          )}
-        </Box>
-      );
-    }
-    
-    return (
-      <Box sx={{ mt: 2 }}>
-        {segment.audio_path && (
-          <AudioPlayer
-            audioUrl={`${process.env.REACT_APP_API_URL}${segment.audio_path}`}
-            onReady={() => {}}
-          />
-        )}
-      </Box>
-    );
-  };
-
   const [showRecorder, setShowRecorder] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 

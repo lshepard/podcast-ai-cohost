@@ -98,6 +98,7 @@ class Segment(SegmentBase):
     episode_id: int
     audio_path: Optional[str] = None
     raw_audio_path: Optional[str] = None
+    video_path: Optional[str] = None
     duration: Optional[int] = None
     created_at: datetime
 

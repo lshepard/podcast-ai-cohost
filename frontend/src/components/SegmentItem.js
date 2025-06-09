@@ -13,6 +13,8 @@ import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import WaveformPlayer from './WaveformPlayer';
+import VideoPlayer from './VideoPlayer';
+import { getMediaUrl } from '../utils/audio';
 import { updateSegment, deleteSegment, generateSpeech } from '../services/api';
 
 const SegmentItem = ({ 
@@ -179,6 +181,19 @@ const SegmentItem = ({
                 segmentId={segment.id}
                 playNext={playNext}
                 playAllEnabled={playAllEnabled}
+              />
+            </Box>
+          )}
+          
+
+          {segment.video_path && (
+            <Box sx={{ mt: 2 }} onClick={handlePlayClick}>
+              <VideoPlayer 
+                videoUrl={getMediaUrl(segment.video_path)}
+                onReady={() => {
+                  console.log('Video ready');
+                }}
+                compact={true}
               />
             </Box>
           )}

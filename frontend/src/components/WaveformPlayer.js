@@ -5,7 +5,7 @@ import RegionsPlugin from 'wavesurfer.js/plugins/regions';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import { getAudioUrl } from '../utils/audio';
+import { getMediaUrl } from '../utils/audio';
 
 const SEGMENT_COLORS = {
   human: '#4a74a8', // blue
@@ -34,7 +34,7 @@ const WaveformPlayer = ({ segments, fullWidth = false, segmentId, playNext, play
       .filter(segment => segment.audio_path)
       .map(segment => ({
         ...segment,
-        normalizedUrl: segment.audio_path.startsWith('http') ? segment.audio_path : getAudioUrl(segment.audio_path)
+        normalizedUrl: segment.audio_path.startsWith('http') ? segment.audio_path : getMediaUrl(segment.audio_path)
       }));
   }, [segments]);
 
