@@ -72,6 +72,7 @@ class Segment(Base):
     text_content = Column(Text, nullable=True)
     audio_path = Column(String(255), nullable=True)
     raw_audio_path = Column(String(255), nullable=True)
+    video_path = Column(String(255), nullable=True)  # Path to video file
     duration = Column(Integer, nullable=True)  # Duration in milliseconds
     created_at = Column(DateTime, default=datetime.utcnow)
 

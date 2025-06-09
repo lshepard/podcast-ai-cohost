@@ -27,6 +27,7 @@ dependencies = [
     "langchain-openai>=0.3.14",
     "google-generativeai>=0.8.5",
     "pydub>=0.25.1",
+    "moviepy>=2.2.1",
 ]
 
 [project.optional-dependencies]

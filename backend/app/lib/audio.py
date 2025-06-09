@@ -99,7 +99,7 @@ def generate_speech(text: str, output_path: str) -> Tuple[bool, str, Optional[st
     try:
         # Hard-coded ElevenLabs settings
         voice = settings.ELEVENLABS_VOICE_ID
-        model = "eleven_multilingual_v2"
+        model = "eleven_v3"
         speed = 1.1
         stability = 0.4
         similarity = 0.7

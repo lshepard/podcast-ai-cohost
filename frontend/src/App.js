@@ -6,6 +6,7 @@ import { AppBar, Box, Container, Toolbar, Typography, Button } from '@mui/materi
 import EpisodeList from './pages/EpisodeList';
 import EpisodeEditor from './components/EpisodeEditor';
 import Research from './pages/Research';
+import { SnackbarProvider } from 'notistack';
 
 // Create a theme
 const theme = createTheme({
@@ -41,30 +42,32 @@ function EpisodeEditorPage() {
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <Box sx={{ flexGrow: 1 }}>
-          <AppBar position="static">
-            <Toolbar>
-              <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                Podcast Recording App
-              </Typography>
-              <Button color="inherit" href="/">Episodes</Button>
-              <Button color="inherit" href="/research">Research</Button>
-            </Toolbar>
-          </AppBar>
-          
-          <Container>
-            <Routes>
-              <Route path="/" element={<EpisodeList />} />
-              <Route path="/episodes/:id" element={<EpisodeEditorPage />} />
-              <Route path="/research" element={<Research />} />
-            </Routes>
-          </Container>
-        </Box>
-      </Router>
-    </ThemeProvider>
+    <SnackbarProvider maxSnack={3}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <Box sx={{ flexGrow: 1 }}>
+            <AppBar position="static">
+              <Toolbar>
+                <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+                  Podcast Recording App
+                </Typography>
+                <Button color="inherit" href="/">Episodes</Button>
+                <Button color="inherit" href="/research">Research</Button>
+              </Toolbar>
+            </AppBar>
+            
+            <Container>
+              <Routes>
+                <Route path="/" element={<EpisodeList />} />
+                <Route path="/episodes/:id" element={<EpisodeEditorPage />} />
+                <Route path="/research" element={<Research />} />
+              </Routes>
+            </Container>
+          </Box>
+        </Router>
+      </ThemeProvider>
+    </SnackbarProvider>
   );
 }
 

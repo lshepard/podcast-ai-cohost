@@ -2,6 +2,7 @@ import os
 import uuid
 import logging
 from typing import List
+from moviepy import VideoFileClip
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -143,4 +144,59 @@ async def test_elevenlabs(
         "speech_generation_success": tts_success,
         "speech_generation_message": tts_message,
         "test_file_path": tts_path
-    } 
+    }
+
+
+@router.post("/video/upload", status_code=status.HTTP_201_CREATED)
+async def upload_video(
+    episode_id: int,
+    segment_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    """Upload a video file for a segment."""
+    # Check if segment exists
+    db_segment = (
+        db.query(models.Segment)
+        .filter(models.Segment.episode_id == episode_id, models.Segment.id == segment_id)
+        .first()
+    )
+    if db_segment is None:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    # Create episode directory if it doesn't exist
+    episode_dir = os.path.join(settings.EPISODES_DIR, str(episode_id))
+    segments_dir = os.path.join(episode_dir, "segments")
+    os.makedirs(segments_dir, exist_ok=True)
+    
+    try:
+        # Save the uploaded video file
+        video_path = os.path.join(segments_dir, f"{segment_id}_video.mp4")
+        with open(video_path, "wb") as buffer:
+            buffer.write(await file.read())
+        
+        # Update segment with the video path
+        relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video.mp4"
+        db_segment.video_path = relative_video_path
+        
+        # Get video duration using moviepy
+        video = VideoFileClip(video_path)
+        duration = int(video.duration * 1000)  # Convert to milliseconds
+        video.close()
+        db_segment.duration = duration
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Video uploaded successfully",
+            "video_path": relative_video_path,
+            "duration": duration
+        }
+        
+    except Exception as e:
+        # Clean up file if processing fails
+        if os.path.exists(video_path):
+            os.remove(video_path)
+        raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}") 

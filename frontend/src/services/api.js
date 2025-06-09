@@ -62,4 +62,14 @@ export const uploadAudio = (episodeId, segmentId, file) => {
 export const generateText = (episodeId, prompt, order_index, history = []) => 
   api.post('/generate', { episode_id: episodeId, prompt, order_index, history });
 
+export const uploadVideo = (episodeId, segmentId, videoFile) => {
+  const formData = new FormData();
+  formData.append('file', videoFile);
+  return api.post(`/video/upload?episode_id=${episodeId}&segment_id=${segmentId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
 export default api; 

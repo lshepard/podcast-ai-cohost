@@ -25,6 +25,8 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import EditIcon from '@mui/icons-material/Edit';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { useSnackbar } from 'notistack';
 import {
   DndContext,
   closestCenter,
@@ -52,10 +54,14 @@ import {
   updateSegment, 
   uploadAudio, 
   generateText,
-  generateSpeech
+  generateSpeech,
+  uploadVideo,
 } from '../services/api';
 import EpisodeSources from './EpisodeSources';
 import NotesEditor from './NotesEditor';
+import VideoRecorder from './VideoRecorder';
+import AudioPlayer from './AudioPlayer';
+import VideoPlayer from './VideoPlayer';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -68,6 +74,7 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
   
   // Dialog states
   const [addHumanDialogOpen, setAddHumanDialogOpen] = useState(false);
+  const [addHumanVideoDialogOpen, setAddHumanVideoDialogOpen] = useState(false);
   const [addBotDialogOpen, setAddBotDialogOpen] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   
@@ -649,6 +656,105 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
     }
   }, [segments, scrollToSegmentId]);
 
+  const [recordingType, setRecordingType] = useState('audio'); // 'audio' or 'video'
+
+  const handleVideoUploaded = async (episodeId, segmentId, videoFile) => {
+    let realSegmentId = segmentId;
+    try {
+      // If segmentId is not a real ID, create the segment first
+      if (!realSegmentId || typeof realSegmentId !== 'number') {
+        let segmentIndex = segments.length;
+        if (insertPosition !== null && insertPosition >= 0) {
+          segmentIndex = insertPosition;
+        }
+        const newSegmentData = {
+          segment_type: 'human',
+          order_index: segmentIndex,
+          text_content: ''
+        };
+        const segmentResponse = await createSegment(episodeId, newSegmentData);
+        realSegmentId = segmentResponse.data.id;
+        // Optionally update order indexes here if needed
+      }
+      // Now upload the video
+      const result = await uploadVideo(episodeId, realSegmentId, videoFile);
+      if (result.data && result.data.success) {
+        // Update the segment in the local state
+        const updatedSegments = episode.segments.map(segment => {
+          if (segment.id === realSegmentId) {
+            return {
+              ...segment,
+              video_path: result.data.video_path,
+              audio_path: result.data.audio_path,
+              duration: result.data.duration,
+            };
+          }
+          return segment;
+        });
+        setEpisode(prev => ({
+          ...prev,
+          segments: updatedSegments,
+        }));
+        enqueueSnackbar('Video uploaded successfully', { variant: 'success' });
+      }
+      await fetchEpisodeData();
+      setAddHumanVideoDialogOpen(false);
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to upload video', { variant: 'error' });
+    }
+  };
+
+  const renderSegmentContent = (segment) => {
+    if (segment.segment_type === 'HUMAN') {
+      return (
+        <Box sx={{ mt: 2 }}>
+          {segment.video_path ? (
+            <VideoPlayer
+              videoUrl={`${process.env.REACT_APP_API_URL}${segment.video_path}`}
+              onReady={() => {}}
+            />
+          ) : segment.audio_path ? (
+            <AudioPlayer
+              audioUrl={`${process.env.REACT_APP_API_URL}${segment.audio_path}`}
+              onReady={() => {}}
+            />
+          ) : (
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={() => setRecordingType('audio')}
+                startIcon={<PlayArrowIcon />}
+              >
+                Record Audio
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setRecordingType('video')}
+                startIcon={<PlayArrowIcon />}
+              >
+                Record Video
+              </Button>
+            </Box>
+          )}
+        </Box>
+      );
+    }
+    
+    return (
+      <Box sx={{ mt: 2 }}>
+        {segment.audio_path && (
+          <AudioPlayer
+            audioUrl={`${process.env.REACT_APP_API_URL}${segment.audio_path}`}
+            onReady={() => {}}
+          />
+        )}
+      </Box>
+    );
+  };
+
+  const [showRecorder, setShowRecorder] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -946,11 +1052,20 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
           <MenuItem 
             onClick={() => {
               handleCloseInsertMenu();
-              handleAddHumanSegment(insertPosition);
+              setAddHumanDialogOpen(true);
             }}
           >
             <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-            Insert Human Segment
+            Insert Human Audio Segment
+          </MenuItem>
+          <MenuItem 
+            onClick={() => {
+              handleCloseInsertMenu();
+              setAddHumanVideoDialogOpen(true);
+            }}
+          >
+            <PersonIcon fontSize="small" sx={{ mr: 1 }} />
+            Insert Human Video Segment
           </MenuItem>
           <MenuItem 
             onClick={() => {
@@ -966,12 +1081,12 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
         {/* Human Dialog */}
         <Dialog
           open={addHumanDialogOpen}
-          onClose={handleHumanDialogClose}
+          onClose={() => setAddHumanDialogOpen(false)}
           maxWidth="md"
           fullWidth
         >
           <DialogTitle>
-            {insertPosition !== null ? 'Insert Human Segment' : 'Add Human Segment'}
+            {insertPosition !== null ? 'Insert Human Audio Segment' : 'Add Human Audio Segment'}
           </DialogTitle>
           <DialogContent>
             <AudioRecorder
@@ -981,7 +1096,29 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleHumanDialogClose}>Cancel</Button>
+            <Button onClick={() => setAddHumanDialogOpen(false)}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
+        
+        {/* Video Dialog */}
+        <Dialog
+          open={addHumanVideoDialogOpen}
+          onClose={() => setAddHumanVideoDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {insertPosition !== null ? 'Insert Human Video Segment' : 'Add Human Video Segment'}
+          </DialogTitle>
+          <DialogContent>
+            <VideoRecorder
+              onVideoUploaded={(episodeId, segmentId, videoFile) => handleVideoUploaded(episodeId, segmentId, videoFile)}
+              episodeId={episodeId}
+              segmentId={null}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAddHumanVideoDialogOpen(false)}>Cancel</Button>
           </DialogActions>
         </Dialog>
         
@@ -1083,6 +1220,33 @@ const EpisodeEditor = ({ episodeId, onSave }) => {
             {notification.message}
           </Alert>
         </Snackbar>
+
+        <Dialog
+          open={showRecorder}
+          onClose={() => setShowRecorder(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            {recordingType === 'audio' ? 'Record Audio' : 'Record Video'}
+          </DialogTitle>
+          <DialogContent>
+            {recordingType === 'audio' ? (
+              <AudioRecorder
+                onRecordingComplete={handleAudioUploaded}
+                onUploadComplete={handleAudioUploaded}
+              />
+            ) : (
+              <VideoRecorder
+                onRecordingComplete={handleVideoUploaded}
+                onUploadComplete={handleVideoUploaded}
+              />
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowRecorder(false)}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );
