@@ -1,6 +1,9 @@
 import os
 import sys
 from pydub import AudioSegment
+import re
+import shutil
+import datetime
 
 # Add app to sys.path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
@@ -11,11 +14,19 @@ from app.core.config import settings
 from app.db.session import SessionLocal
 from app.db.models import Segment
 
+def sanitize_filename(text, max_length=16):
+    # Remove non-alphanumeric characters, replace spaces with nothing, lowercase, and trim
+    sanitized = re.sub(r'[^a-zA-Z0-9 ]', '', text or '')
+    sanitized = sanitized.strip().replace(' ', '').lower()
+    return sanitized[:max_length] if sanitized else 'segment'
+
 def export_segments(episode_number):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(base_dir, 'data')
     segments_dir = os.path.join(data_dir, 'episodes', str(episode_number), 'segments')
-    export_dir = os.path.join(data_dir, 'episodes', str(episode_number), 'export')
+    # Create a unique timestamped export directory
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    export_dir = os.path.join(data_dir, 'episodes', str(episode_number), 'exports', f'export_{timestamp}')
 
     if not os.path.exists(segments_dir):
         print(f"Segments directory does not exist: {segments_dir}")
@@ -28,43 +39,43 @@ def export_segments(episode_number):
     segments = db.query(Segment).filter(Segment.episode_id == int(episode_number)).order_by(Segment.order_index).all()
     db.close()
 
-    audio_files = []
     missing_files = []
-    for seg in segments:
-        rel_path = seg.raw_audio_path or seg.audio_path
-        if not rel_path:
-            missing_files.append(f"Segment {seg.id} (order_index {seg.order_index}) has no audio path.")
-            continue
-        rel_path = rel_path.lstrip('/')
-        # If 'data/' is not in the path, prepend it
-        if not rel_path.startswith('data/'):
-            abs_path = os.path.join(data_dir, rel_path)
-        else:
-            abs_path = os.path.join(base_dir, rel_path)
-        if os.path.exists(abs_path) and abs_path.lower().endswith((".mp3", ".wav", ".m4a")):
-            audio_files.append(abs_path)
-        else:
-            missing_files.append(f"Segment {seg.id} (order_index {seg.order_index}) missing or invalid file: {abs_path}")
+    for idx, seg in enumerate(segments, 1):
+        # Determine type
+        seg_type = 'human' if getattr(seg, 'segment_type', '').lower() == 'human' else 'ai'
+        # Get first words from transcript/text_content
+        first_words = (seg.text_content or '').strip().split()
+        first_words = ' '.join(first_words[:4])  # Use first 4 words
+        sanitized = sanitize_filename(first_words)
+        order_str = f"{idx:02d}"
+        # Export audio
+        rel_audio = seg.raw_audio_path or seg.audio_path
+        if rel_audio:
+            ext = os.path.splitext(rel_audio)[1] or '.mp3'
+            out_name = f"{order_str}_{seg_type}_{sanitized}{ext}"
+            src_path = os.path.join(data_dir, rel_audio.lstrip('/')) if not rel_audio.startswith('data/') else os.path.join(base_dir, rel_audio)
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, os.path.join(export_dir, out_name))
+                print(f"Exported audio: {out_name}")
+            else:
+                missing_files.append(f"Missing audio: {src_path}")
+        # Export video
+        rel_video = getattr(seg, 'video_path', None)
+        if rel_video:
+            ext = os.path.splitext(rel_video)[1] or '.mp4'
+            out_name = f"{order_str}_{seg_type}_{sanitized}{ext}"
+            src_path = os.path.join(data_dir, rel_video.lstrip('/')) if not rel_video.startswith('data/') else os.path.join(base_dir, rel_video)
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, os.path.join(export_dir, out_name))
+                print(f"Exported video: {out_name}")
+            else:
+                missing_files.append(f"Missing video: {src_path}")
 
     if missing_files:
-        raise FileNotFoundError("\n".join(missing_files))
-
-    if not audio_files:
-        print("No valid audio files found for this episode.")
-        return
-
-    combined = None
-    for filename in audio_files:
-        audio = AudioSegment.from_file(filename)
-        if combined is None:
-            combined = audio
-        else:
-            combined += audio
-        print(f"Added {filename} to combined audio")
-
-    output_path = os.path.join(export_dir, f"episode_{episode_number}_combined.mp3")
-    combined.export(output_path, format="mp3")
-    print(f"Exported combined audio to {output_path}")
+        print("Some files were missing:")
+        for m in missing_files:
+            print(m)
+    print(f"\nExport complete. Exported files are in: {export_dir}\n")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

@@ -5,7 +5,7 @@ services:
     build: ./backend
     volumes:
       - ./backend:/app
-      - ./data:/app/data
+      - ./backend/data:/app/data
     ports:
       - "8000:8000"
     env_file:

@@ -81,9 +81,10 @@ async def upload_audio(
     segments_dir = os.path.join(episode_dir, "segments")
     os.makedirs(segments_dir, exist_ok=True)
     
-    # Save the uploaded file with its original extension
+    # Add a random nonce to the filename to prevent caching
+    unique_id = str(uuid.uuid4())[:8]
     orig_ext = os.path.splitext(file.filename)[1] or ".wav"
-    file_path = os.path.join(segments_dir, f"{segment_id}_raw{orig_ext}")
+    file_path = os.path.join(segments_dir, f"{segment_id}_raw_{unique_id}{orig_ext}")
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
     
@@ -92,7 +93,7 @@ async def upload_audio(
     
     # Also set the audio_path to be the same as raw_audio_path for human segments
     # This ensures the audio can be played back in the UI
-    relative_path = f"/episodes/{episode_id}/segments/{segment_id}_raw{orig_ext}"
+    relative_path = f"/episodes/{episode_id}/segments/{segment_id}_raw_{unique_id}{orig_ext}"
     db_segment.audio_path = relative_path
     
     db.commit()
@@ -158,9 +159,10 @@ async def upload_video(
     os.makedirs(segments_dir, exist_ok=True)
     
     try:
-        # Save the uploaded video file with its original extension
+        # Add a random nonce to the filename to prevent caching
+        unique_id = str(uuid.uuid4())[:8]
         orig_ext = os.path.splitext(file.filename)[1] or ".webm"
-        video_path = os.path.join(segments_dir, f"{segment_id}_video{orig_ext}")
+        video_path = os.path.join(segments_dir, f"{segment_id}_video_{unique_id}{orig_ext}")
         print(f"[DEBUG] Saving uploaded video to: {video_path}")
         with open(video_path, "wb") as buffer:
             content = await file.read()
@@ -170,7 +172,7 @@ async def upload_video(
         
         # Convert WebM to MP4 if needed
         if orig_ext.lower() == '.webm':
-            mp4_path = os.path.join(segments_dir, f"{segment_id}_video.mp4")
+            mp4_path = os.path.join(segments_dir, f"{segment_id}_video_{unique_id}.mp4")
             print(f"[DEBUG] Converting WebM to MP4: {mp4_path}")
             cmd = [
                 'ffmpeg',
@@ -189,9 +191,9 @@ async def upload_video(
             
             # Use the MP4 file for duration and storage
             video_path = mp4_path
-            relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video.mp4"
+            relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video_{unique_id}.mp4"
         else:
-            relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video{orig_ext}"
+            relative_video_path = f"/episodes/{episode_id}/segments/{segment_id}_video_{unique_id}{orig_ext}"
         
         # Update segment with the video path
         db_segment.video_path = relative_video_path

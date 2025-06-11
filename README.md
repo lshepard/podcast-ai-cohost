@@ -133,3 +133,12 @@ The application can be configured using environment variables in the `.env` file
 
 ### Frontend Configuration
 - `REACT_APP_API_URL`: URL for the backend API 
+
+
+
+
+## ARCHITECTURE
+
+The Video processing is done:
+
+- Background removal , trying with the [MediaPipe](https://ai.google.dev/edge/mediapipe/solutions/guide) project. Looking at using [Selfie Segmentation](https://github.com/google-ai-edge/mediapipe/blob/master/docs/solutions/selfie_segmentation.md) to find the human in the prominent foreground (which will be me).
