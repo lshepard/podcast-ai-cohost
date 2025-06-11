@@ -13,6 +13,8 @@ services:
     environment:
       - DATA_DIR=/app/data
       - EPISODES_DIR=/app/data/episodes
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
 
   frontend:
     build: ./frontend
@@ -25,3 +27,33 @@ services:
       - backend
     environment:
       - REACT_APP_API_URL=http://localhost:8000/api 
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  celery:
+    build: ./backend
+    command: celery -A app.celery_app.celery worker --loglevel=info
+    volumes:
+      - ./backend:/app
+      - ./backend/data:/app/data
+    environment:
+      - DATA_DIR=/app/data
+      - EPISODES_DIR=/app/data/episodes
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - backend 
+
+  flower:
+    image: mher/flower:0.9.7
+    command: flower --broker=redis://redis:6379/0 --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - backend
+      - celery 

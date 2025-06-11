@@ -671,6 +671,43 @@ const EpisodeEditor = ({ episodeId }) => {
   const [showRecorder, setShowRecorder] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
+  // Polling: fetch segments every 4 seconds, but only update changed segments
+  useEffect(() => {
+    let polling = true;
+    const editingOrAddingRef = { current: editDialogOpen || addHumanDialogOpen || addHumanVideoDialogOpen || addBotDialogOpen };
+
+    const poll = async () => {
+      if (!polling) return;
+      try {
+        const segmentsResponse = await getSegments(episodeId);
+        const newSegments = segmentsResponse.data.map(segment => ({
+          ...segment,
+          id: segment.id.toString()
+        }));
+        // Only update segments that have changed, and do not update if editing/adding
+        if (!editingOrAddingRef.current) {
+          setSegments(prevSegments => {
+            // Only update if something has changed
+            const changed =
+              prevSegments.length !== newSegments.length ||
+              prevSegments.some((seg, i) =>
+                seg.id !== newSegments[i]?.id ||
+                seg.text_content !== newSegments[i]?.text_content ||
+                seg.video_path !== newSegments[i]?.video_path
+              );
+            return changed ? newSegments : prevSegments;
+          });
+        }
+      } catch (err) {
+        // Ignore polling errors
+      } finally {
+        setTimeout(poll, 4000);
+      }
+    };
+    poll();
+    return () => { polling = false; };
+  }, [episodeId, editDialogOpen, addHumanDialogOpen, addHumanVideoDialogOpen, addBotDialogOpen]);
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>

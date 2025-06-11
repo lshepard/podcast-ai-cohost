@@ -12,6 +12,9 @@ import uuid
 
 from app.core.config import settings
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.db.models import Segment
 
 load_dotenv()
 
@@ -217,3 +220,16 @@ def generate_speech(text: str, output_path: str) -> Tuple[bool, str, Optional[st
         logger.error(f"Error generating speech: {error_detail}")
         logger.error(f"Stack trace: {stack_trace}")
         return False, f"Error generating speech: {error_detail}", None 
+
+engine = create_engine(settings.DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def update_segment_text_content(episode_id, segment_id, text):
+    session = SessionLocal()
+    try:
+        segment = session.query(Segment).filter(Segment.episode_id == episode_id, Segment.id == segment_id).first()
+        if segment:
+            segment.text_content = text
+            session.commit()
+    finally:
+        session.close() 

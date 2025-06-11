@@ -28,6 +28,11 @@ dependencies = [
     "google-generativeai>=0.8.5",
     "pydub>=0.25.1",
     "moviepy>=2.2.1",
+    "celery[redis]>=5.3.6",
+    "numpy>=2.0.2",
+    "mediapipe>=0.10.14",
+    "opencv-python>=4.11.0.86",
+    "opencv-python-headless>=4.11.0.86",
 ]
 
 [project.optional-dependencies]
