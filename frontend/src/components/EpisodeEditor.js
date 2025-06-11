@@ -486,6 +486,8 @@ const EpisodeEditor = ({ episodeId }) => {
   const handleSaveEditedSegment = async (newText) => {
     if (!currentEditSegment) return;
     
+    // Capture scroll position before update
+    const previousScrollY = window.scrollY;
     try {
       const segmentId = currentEditSegment.id;
       
@@ -517,6 +519,9 @@ const EpisodeEditor = ({ episodeId }) => {
     } catch (err) {
       console.error('Error updating segment:', err);
       showNotification('Failed to update segment', 'error');
+    } finally {
+      // Restore scroll position after update
+      window.scrollTo(0, previousScrollY);
     }
   };
 
@@ -624,6 +629,8 @@ const EpisodeEditor = ({ episodeId }) => {
 
   const handleVideoUploaded = async (episodeId, segmentId, videoFile) => {
     let realSegmentId = segmentId;
+    // Capture scroll position before upload
+    const previousScrollY = window.scrollY;
     try {
       // If segmentId is not a real ID, create the segment first
       if (!realSegmentId || typeof realSegmentId !== 'number') {
@@ -665,6 +672,11 @@ const EpisodeEditor = ({ episodeId }) => {
       setAddHumanVideoDialogOpen(false);
     } catch (error) {
       enqueueSnackbar(error.message || 'Failed to upload video', { variant: 'error' });
+    } finally {
+      // Restore scroll position after upload and DOM update
+      setTimeout(() => {
+        window.scrollTo(0, previousScrollY);
+      }, 50);
     }
   };
 
