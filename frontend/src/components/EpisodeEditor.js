@@ -71,6 +71,7 @@ const EpisodeEditor = ({ episodeId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeId, setActiveId] = useState(null);
+  const [scrollToSegmentId, setScrollToSegmentId] = useState(null);
   
   // Dialog states
   const [addHumanDialogOpen, setAddHumanDialogOpen] = useState(false);
@@ -147,7 +148,12 @@ const EpisodeEditor = ({ episodeId }) => {
     }
   }, [episodeId]);
 
-  const fetchEpisodeData = useCallback(async () => {
+  const scrollRestoreRef = useRef(null);
+
+  const fetchEpisodeDataWithScroll = useCallback(async (preserveScroll = false) => {
+    if (preserveScroll) {
+      scrollRestoreRef.current = window.scrollY;
+    }
     setIsLoading(true);
     setError(null);
     
@@ -171,8 +177,15 @@ const EpisodeEditor = ({ episodeId }) => {
 
   useEffect(() => {
     fetchEpisode();
-    fetchEpisodeData();
-  }, [episodeId, fetchEpisode, fetchEpisodeData]);
+    fetchEpisodeDataWithScroll();
+  }, [episodeId, fetchEpisode, fetchEpisodeDataWithScroll]);
+
+  useEffect(() => {
+    if (scrollRestoreRef.current !== null && !scrollToSegmentId) {
+      window.scrollTo(0, scrollRestoreRef.current);
+      scrollRestoreRef.current = null;
+    }
+  }, [segments, scrollToSegmentId]);
 
   const handleAddHumanSegment = (position = null) => {
     setInsertPosition(position);
@@ -201,8 +214,6 @@ const EpisodeEditor = ({ episodeId }) => {
   const handleAudioRecorded = (blob) => {
     setRecordedAudioBlob(blob);
   };
-
-  const [scrollToSegmentId, setScrollToSegmentId] = useState(null);
 
   const handleAudioUploaded = async (blob, episodeId, segmentId) => {
     try {
@@ -235,7 +246,7 @@ const EpisodeEditor = ({ episodeId }) => {
       formData.append('file', blob);
       await uploadAudio(episodeId, segmentId, blob);
       // Refresh segments
-      await fetchEpisodeData();
+      await fetchEpisodeDataWithScroll(true);
       // Close dialog
       handleHumanDialogClose();
       showNotification('Human segment added successfully', 'success');
@@ -319,7 +330,6 @@ const EpisodeEditor = ({ episodeId }) => {
   // Separate function to generate audio for a segment
   const generateAudioForSegment = async (segmentId, text) => {
     try {
-      // First update the segment to show generating status
       setSegments(prevSegments => 
         prevSegments.map(seg => 
           seg.id === segmentId.toString()
@@ -327,16 +337,11 @@ const EpisodeEditor = ({ episodeId }) => {
             : seg
         )
       );
-      
-      // Generate the speech with the updated API
       const response = await generateSpeech(text, episodeId, segmentId);
-      
       if (response.data.success) {
-        // No need to update the segment with audio_path, it's already done by the backend
-        // Just refresh to get the latest data
-        await fetchEpisodeData();
+        // Use scroll-preserving fetch
+        await fetchEpisodeDataWithScroll(true);
       } else {
-        // Show the specific error message from the backend
         const errorMessage = response.data.message || 'Failed to generate speech';
         console.error('Audio generation error:', errorMessage);
         showNotification(`Audio generation failed: ${errorMessage}`, 'error');
@@ -346,8 +351,6 @@ const EpisodeEditor = ({ episodeId }) => {
       console.error('Error generating speech:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Unknown error';
       showNotification(`Audio generation failed: ${errorMessage}`, 'error');
-      
-      // Update segments to remove loading state
       setSegments(prevSegments => 
         prevSegments.map(seg => 
           seg.id === segmentId.toString()
@@ -422,7 +425,7 @@ const EpisodeEditor = ({ episodeId }) => {
       showNotification('Failed to reorder segments', 'error');
       
       // Revert to original order on error
-      await fetchEpisodeData();
+      await fetchEpisodeDataWithScroll(true);
     } finally {
       setActiveId(null);
     }
@@ -668,7 +671,7 @@ const EpisodeEditor = ({ episodeId }) => {
         }));
         enqueueSnackbar('Video uploaded successfully', { variant: 'success' });
       }
-      await fetchEpisodeData();
+      await fetchEpisodeDataWithScroll(true);
       setAddHumanVideoDialogOpen(false);
     } catch (error) {
       enqueueSnackbar(error.message || 'Failed to upload video', { variant: 'error' });
