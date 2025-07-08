@@ -106,7 +106,7 @@ def generate_speech(text: str, output_path: str) -> Tuple[bool, str, Optional[st
         speed = 1.0
         stability = 0.4
         similarity = 0.7
-        style_exaggeration = 0.2
+        style_exaggeration = 0.4
 
         # Log key parameters
         logger.debug(f"ElevenLabs API Key: {'*****' + settings.ELEVENLABS_API_KEY[-4:] if settings.ELEVENLABS_API_KEY else 'Not set'}")
