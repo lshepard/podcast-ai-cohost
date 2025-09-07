@@ -20,19 +20,33 @@ def sanitize_filename(text, max_length=16):
     sanitized = sanitized.strip().replace(' ', '').lower()
     return sanitized[:max_length] if sanitized else 'segment'
 
-def get_audio_path(rel_audio, base_dir, data_dir):
-    """Helper function to resolve audio file paths"""
-    if rel_audio.startswith('/episodes/'):
+def get_file_path(rel_path, base_dir, data_dir):
+    """Helper function to resolve file paths for both audio and video"""
+    possible_paths = []
+    
+    # Handle different path formats
+    if rel_path.startswith('/episodes/'):
         # Remove the /episodes/ prefix and use settings.EPISODES_DIR
-        relative_path = rel_audio[10:]  # Remove '/episodes/'
-        src_path = os.path.join(str(settings.EPISODES_DIR), relative_path)
-    elif rel_audio.startswith('data/'):
+        relative_path = rel_path[10:]  # Remove '/episodes/'
+        possible_paths.append(os.path.join(str(settings.EPISODES_DIR), relative_path))
+    elif rel_path.startswith('/app/data/'):
+        # Handle Docker container paths - remove /app/data/ prefix
+        relative_path = rel_path[10:]  # Remove '/app/data/'
+        possible_paths.append(os.path.join(data_dir, relative_path))
+    elif rel_path.startswith('data/'):
         # Handle data/ prefixed paths
-        src_path = os.path.join(base_dir, rel_audio)
+        possible_paths.append(os.path.join(base_dir, rel_path))
     else:
         # Handle other relative paths
-        src_path = os.path.join(data_dir, rel_audio.lstrip('/'))
-    return src_path
+        possible_paths.append(os.path.join(data_dir, rel_path.lstrip('/')))
+    
+    # Try each possible path and return the first one that exists
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    
+    # If none exist, return the first possible path (for error reporting)
+    return possible_paths[0] if possible_paths else rel_path
 
 def export_segments(episode_number):
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -74,7 +88,7 @@ def export_segments(episode_number):
         if rel_audio:
             ext = os.path.splitext(rel_audio)[1] or '.mp3'
             out_name = f"{order_str}_{seg_type}_{sanitized}{ext}"
-            src_path = get_audio_path(rel_audio, base_dir, data_dir)
+            src_path = get_file_path(rel_audio, base_dir, data_dir)
             print(f"DEBUG: rel_audio = {rel_audio}, src_path = {src_path}")
             
             if os.path.exists(src_path):
@@ -94,17 +108,8 @@ def export_segments(episode_number):
         if rel_video:
             ext = os.path.splitext(rel_video)[1] or '.mp4'
             out_name = f"{order_str}_{seg_type}_{sanitized}{ext}"
-            # Use settings.EPISODES_DIR to construct the correct path
-            if rel_video.startswith('/episodes/'):
-                # Remove the /episodes/ prefix and use settings.EPISODES_DIR
-                relative_path = rel_video[10:]  # Remove '/episodes/'
-                src_path = os.path.join(str(settings.EPISODES_DIR), relative_path)
-            elif rel_video.startswith('data/'):
-                # Handle data/ prefixed paths
-                src_path = os.path.join(base_dir, rel_video)
-            else:
-                # Handle other relative paths
-                src_path = os.path.join(data_dir, rel_video.lstrip('/'))
+            # Use the same path resolution logic as audio
+            src_path = get_file_path(rel_video, base_dir, data_dir)
             
             if os.path.exists(src_path):
                 shutil.copy2(src_path, os.path.join(export_dir, out_name))

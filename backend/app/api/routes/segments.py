@@ -1,4 +1,6 @@
 from typing import List
+import os
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -128,4 +130,5 @@ def delete_segment(
     
     db.delete(db_segment)
     db.commit()
-    return None 
+    return None
+
