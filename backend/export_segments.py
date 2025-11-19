@@ -77,7 +77,13 @@ def export_segments(episode_number):
     
     for idx, seg in enumerate(segments, 1):
         # Determine type
-        seg_type = 'human' if getattr(seg, 'segment_type', '').lower() == 'human' else 'ai'
+        segment_type_lower = getattr(seg, 'segment_type', '').lower()
+        if segment_type_lower == 'human':
+            seg_type = 'human'
+        elif segment_type_lower == 'source':
+            seg_type = 'source'
+        else:
+            seg_type = 'ai'
         # Get first words from transcript/text_content
         first_words = (seg.text_content or '').strip().split()
         first_words = ' '.join(first_words[:4])  # Use first 4 words

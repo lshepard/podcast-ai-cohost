@@ -10,6 +10,7 @@ import { getMediaUrl } from '../utils/audio';
 const SEGMENT_COLORS = {
   human: '#4a74a8', // blue
   bot: '#e91e63',   // pink
+  source: '#4caf50', // green
 };
 
 const formatTime = (seconds) => {

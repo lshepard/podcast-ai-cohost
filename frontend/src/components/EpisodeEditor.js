@@ -22,6 +22,8 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import ArticleIcon from '@mui/icons-material/Article';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import EditIcon from '@mui/icons-material/Edit';
@@ -77,6 +79,7 @@ const EpisodeEditor = ({ episodeId }) => {
   const [addHumanDialogOpen, setAddHumanDialogOpen] = useState(false);
   const [addHumanVideoDialogOpen, setAddHumanVideoDialogOpen] = useState(false);
   const [addBotDialogOpen, setAddBotDialogOpen] = useState(false);
+  const [addSourceDialogOpen, setAddSourceDialogOpen] = useState(false);
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
   
   // Edit Dialog
@@ -92,6 +95,7 @@ const EpisodeEditor = ({ episodeId }) => {
   const [botPrompt, setBotPrompt] = useState('');
   const [botResponse, setBotResponse] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [sourceTextContent, setSourceTextContent] = useState('');
   
   // Play All feature
   const [playAllEnabled, setPlayAllEnabled] = useState(false);
@@ -197,6 +201,11 @@ const EpisodeEditor = ({ episodeId }) => {
     setAddBotDialogOpen(true);
   };
 
+  const handleAddSourceSegment = (position = null) => {
+    setInsertPosition(position);
+    setAddSourceDialogOpen(true);
+  };
+
   const handleHumanDialogClose = () => {
     setAddHumanDialogOpen(false);
     setInsertPosition(null);
@@ -209,6 +218,13 @@ const EpisodeEditor = ({ episodeId }) => {
     setIsGenerating(false);
     setInsertPosition(null);
     setSkippedGeneration(false);
+  };
+
+  const handleSourceDialogClose = () => {
+    setAddSourceDialogOpen(false);
+    setInsertPosition(null);
+    setSourceTextContent('');
+    setRecordedAudioBlob(null);
   };
 
   const handleAudioRecorded = (blob) => {
@@ -253,6 +269,47 @@ const EpisodeEditor = ({ episodeId }) => {
     } catch (err) {
       console.error('Error uploading audio:', err);
       showNotification('Failed to upload audio', 'error');
+    }
+  };
+
+  const handleSourceAudioUploaded = async (blob, episodeId, segmentId, textContent = '') => {
+    try {
+      // First create a segment
+      if (!segmentId) {
+        // If we're inserting at a specific position, handle reordering
+        let segmentIndex = segments.length;
+        if (insertPosition !== null && insertPosition >= 0) {
+          segmentIndex = insertPosition;
+        }
+        const newSegmentData = {
+          segment_type: 'source',
+          order_index: segmentIndex,
+          text_content: textContent
+        };
+        const segmentResponse = await createSegment(episodeId, newSegmentData);
+        segmentId = segmentResponse.data.id;
+        // If inserting in the middle, update order_index of subsequent segments
+        if (insertPosition !== null && insertPosition < segments.length) {
+          await updateSegmentOrders(segments, insertPosition, true);
+        }
+        // Set scroll target to new segment
+        setScrollToSegmentId(segmentId.toString());
+      } else {
+        // Set scroll target to existing segment
+        setScrollToSegmentId(segmentId.toString());
+      }
+      // Upload the audio file if provided
+      if (blob) {
+        await uploadAudio(episodeId, segmentId, blob);
+      }
+      // Refresh segments
+      await fetchEpisodeDataWithScroll(true);
+      // Close dialog
+      handleSourceDialogClose();
+      showNotification('Source segment added successfully', 'success');
+    } catch (err) {
+      console.error('Error uploading source segment:', err);
+      showNotification('Failed to upload source segment', 'error');
     }
   };
 
@@ -1024,7 +1081,7 @@ const EpisodeEditor = ({ episodeId }) => {
             }}
           >
             <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-            Insert Human Audio Segment
+            {insertPosition !== null && insertPosition > 0 ? 'Insert Human Audio Segment' : 'Add Human Audio Segment'}
           </MenuItem>
           <MenuItem 
             onClick={() => {
@@ -1033,7 +1090,7 @@ const EpisodeEditor = ({ episodeId }) => {
             }}
           >
             <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-            Insert Human Video Segment
+            {insertPosition !== null && insertPosition > 0 ? 'Insert Human Video Segment' : 'Add Human Video Segment'}
           </MenuItem>
           <MenuItem 
             onClick={() => {
@@ -1042,7 +1099,16 @@ const EpisodeEditor = ({ episodeId }) => {
             }}
           >
             <SmartToyIcon fontSize="small" sx={{ mr: 1 }} />
-            Insert AI Segment
+            {insertPosition !== null && insertPosition > 0 ? 'Insert AI Segment' : 'Add AI Segment'}
+          </MenuItem>
+          <MenuItem 
+            onClick={() => {
+              handleCloseInsertMenu();
+              handleAddSourceSegment(insertPosition);
+            }}
+          >
+            <ArticleIcon fontSize="small" sx={{ mr: 1 }} />
+            {insertPosition !== null && insertPosition > 0 ? 'Insert Source Segment' : 'Add Source Segment'}
           </MenuItem>
         </Menu>
         
@@ -1160,6 +1226,80 @@ const EpisodeEditor = ({ episodeId }) => {
               color="primary"
             >
               Save Segment
+            </Button>
+          </DialogActions>
+        </Dialog>
+        
+        {/* Source Dialog */}
+        <Dialog
+          open={addSourceDialogOpen}
+          onClose={handleSourceDialogClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {insertPosition !== null ? 'Insert Source Segment' : 'Add Source Segment'}
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ my: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Add a cited source or upload audio for a source segment. You can add text content and/or upload an audio file (recording is not available for source segments).
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Source Content (Optional)"
+                placeholder="Enter text content for the source segment..."
+                value={sourceTextContent}
+                onChange={(e) => setSourceTextContent(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+              <Box sx={{ mt: 2 }}>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  style={{ display: 'none' }}
+                  id="source-audio-upload"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setRecordedAudioBlob(file);
+                    }
+                  }}
+                />
+                <label htmlFor="source-audio-upload">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<CloudUploadIcon />}
+                    sx={{ mb: 2 }}
+                  >
+                    Upload Audio File
+                  </Button>
+                </label>
+                {recordedAudioBlob && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Selected: {recordedAudioBlob.name}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleSourceDialogClose}>Cancel</Button>
+            <Button 
+              onClick={async () => {
+                if (!sourceTextContent && !recordedAudioBlob) {
+                  showNotification('Please add text content or upload audio', 'warning');
+                  return;
+                }
+                await handleSourceAudioUploaded(recordedAudioBlob, episodeId, null, sourceTextContent);
+              }}
+              variant="contained" 
+              color="success"
+            >
+              Save Source Segment
             </Button>
           </DialogActions>
         </Dialog>

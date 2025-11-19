@@ -34,7 +34,11 @@ const EditDialog = ({ open, segment, onClose, onSave, isGenerating }) => {
       maxWidth="md"
     >
       <DialogTitle>
-        {segment?.segment_type === 'human' ? 'Edit Transcription' : 'Edit AI Response'}
+        {segment?.segment_type === 'human' 
+          ? 'Edit Transcription' 
+          : segment?.segment_type === 'source'
+          ? 'Edit Source Content'
+          : 'Edit AI Response'}
       </DialogTitle>
       <DialogContent>
         <TextField

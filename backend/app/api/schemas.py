@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class SegmentType(str, Enum):
     HUMAN = "human"
     BOT = "bot"
+    SOURCE = "source"
 
 
 class SourceType(str, Enum):
