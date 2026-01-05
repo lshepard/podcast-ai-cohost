@@ -11,11 +11,12 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import ArticleIcon from '@mui/icons-material/Article';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import WaveformPlayer from './WaveformPlayer';
 import VideoPlayer from './VideoPlayer';
 import { getMediaUrl } from '../utils/audio';
-import { updateSegment, deleteSegment, generateSpeech } from '../services/api';
+import { deleteSegment } from '../services/api';
 
 const SegmentItem = ({ 
   segment, 
@@ -37,55 +38,6 @@ const SegmentItem = ({
   useEffect(() => {
     setIsGenerating(segment.isGeneratingSpeech || false);
   }, [segment.isGeneratingSpeech]);
-
-  // Helper to generate speech with the latest text
-  const handleGenerateSpeechWithText = async (text) => {
-    if (!text) return;
-    
-    try {
-      // Update state to show generation is in progress
-      setIsGenerating(true);
-      setError(null);
-      
-      // Use the updated API to generate speech
-      const response = await generateSpeech(text, episodeId, segment.id);
-      
-      if (response.data.success) {
-        // Segment has been updated in the database by the backend
-        // Get the updated data from the response
-        const updatedSegment = {
-          ...segment,
-          audio_path: response.data.file_path,
-          text_content: text,
-          isGeneratingSpeech: false
-        };
-        
-        // Notify parent with updated data
-        if (onUpdate) {
-          onUpdate(updatedSegment);
-        }
-      } else {
-        // Show the specific error message from the backend
-        const errorMessage = response.data.message || 'Failed to generate speech';
-        setError(`Speech generation failed: ${errorMessage}`);
-        throw new Error(errorMessage);
-      }
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || 'Unknown error';
-      setError(`Failed to generate speech: ${errorMessage}`);
-      console.error('Error generating speech:', err);
-      
-      // Update state to remove loading state even if generation fails
-      if (onUpdate) {
-        onUpdate({
-          ...segment,
-          isGeneratingSpeech: false
-        });
-      }
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handleDeleteSegment = async () => {
     if (window.confirm('Are you sure you want to delete this segment?')) {
@@ -111,11 +63,35 @@ const SegmentItem = ({
     }
   };
 
+  const getBackgroundColor = () => {
+    if (segment.segment_type === 'human') return '#f5f9ff';
+    if (segment.segment_type === 'source') return '#f5fff5';
+    return '#fdf5f9';
+  };
+
+  const getSegmentIcon = () => {
+    if (segment.segment_type === 'human') return <PersonIcon />;
+    if (segment.segment_type === 'source') return <ArticleIcon />;
+    return <SmartToyIcon />;
+  };
+
+  const getSegmentLabel = () => {
+    if (segment.segment_type === 'human') return 'Human';
+    if (segment.segment_type === 'source') return 'Source';
+    return 'AI';
+  };
+
+  const getSegmentColor = () => {
+    if (segment.segment_type === 'human') return 'primary';
+    if (segment.segment_type === 'source') return 'success';
+    return 'secondary';
+  };
+
   return (
     <Card sx={{ 
       mb: 2, 
       opacity: isDragging ? 0.5 : 1,
-      backgroundColor: segment.segment_type === 'human' ? '#f5f9ff' : '#fdf5f9'
+      backgroundColor: getBackgroundColor()
     }}>
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -126,9 +102,9 @@ const SegmentItem = ({
           ) : null}
           
           <Chip 
-            icon={segment.segment_type === 'human' ? <PersonIcon /> : <SmartToyIcon />}
-            label={segment.segment_type === 'human' ? 'Human' : 'AI'}
-            color={segment.segment_type === 'human' ? 'primary' : 'secondary'}
+            icon={getSegmentIcon()}
+            label={getSegmentLabel()}
+            color={getSegmentColor()}
             size="small"
             sx={{ mr: 1 }}
           />

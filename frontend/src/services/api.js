@@ -11,6 +11,11 @@ const api = axios.create({
   },
 });
 
+// Function to update auth credentials
+export const updateApiAuth = (username, password) => {
+  api.defaults.auth = { username, password };
+};
+
 // Episode API
 export const getEpisodes = () => api.get('/episodes');
 export const getEpisode = (id) => api.get(`/episodes/${id}`);

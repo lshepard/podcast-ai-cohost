@@ -20,6 +20,34 @@ def sanitize_filename(text, max_length=16):
     sanitized = sanitized.strip().replace(' ', '').lower()
     return sanitized[:max_length] if sanitized else 'segment'
 
+def get_file_path(rel_path, base_dir, data_dir):
+    """Helper function to resolve file paths for both audio and video"""
+    possible_paths = []
+    
+    # Handle different path formats
+    if rel_path.startswith('/episodes/'):
+        # Remove the /episodes/ prefix and use settings.EPISODES_DIR
+        relative_path = rel_path[10:]  # Remove '/episodes/'
+        possible_paths.append(os.path.join(str(settings.EPISODES_DIR), relative_path))
+    elif rel_path.startswith('/app/data/'):
+        # Handle Docker container paths - remove /app/data/ prefix
+        relative_path = rel_path[10:]  # Remove '/app/data/'
+        possible_paths.append(os.path.join(data_dir, relative_path))
+    elif rel_path.startswith('data/'):
+        # Handle data/ prefixed paths
+        possible_paths.append(os.path.join(base_dir, rel_path))
+    else:
+        # Handle other relative paths
+        possible_paths.append(os.path.join(data_dir, rel_path.lstrip('/')))
+    
+    # Try each possible path and return the first one that exists
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    
+    # If none exist, return the first possible path (for error reporting)
+    return possible_paths[0] if possible_paths else rel_path
+
 def export_segments(episode_number):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(base_dir, 'data')
@@ -27,6 +55,11 @@ def export_segments(episode_number):
     # Create a unique timestamped export directory
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     export_dir = os.path.join(data_dir, 'episodes', str(episode_number), 'exports', f'export_{timestamp}')
+
+    # Debug output
+    print(f"DEBUG: settings.EPISODES_DIR = {settings.EPISODES_DIR}")
+    print(f"DEBUG: base_dir = {base_dir}")
+    print(f"DEBUG: data_dir = {data_dir}")
 
     if not os.path.exists(segments_dir):
         print(f"Segments directory does not exist: {segments_dir}")
@@ -40,9 +73,17 @@ def export_segments(episode_number):
     db.close()
 
     missing_files = []
+    audio_segments = []  # Store audio segments for combining
+    
     for idx, seg in enumerate(segments, 1):
         # Determine type
-        seg_type = 'human' if getattr(seg, 'segment_type', '').lower() == 'human' else 'ai'
+        segment_type_lower = getattr(seg, 'segment_type', '').lower()
+        if segment_type_lower == 'human':
+            seg_type = 'human'
+        elif segment_type_lower == 'source':
+            seg_type = 'source'
+        else:
+            seg_type = 'ai'
         # Get first words from transcript/text_content
         first_words = (seg.text_content or '').strip().split()
         first_words = ' '.join(first_words[:4])  # Use first 4 words
@@ -53,10 +94,19 @@ def export_segments(episode_number):
         if rel_audio:
             ext = os.path.splitext(rel_audio)[1] or '.mp3'
             out_name = f"{order_str}_{seg_type}_{sanitized}{ext}"
-            src_path = os.path.join(data_dir, rel_audio.lstrip('/')) if not rel_audio.startswith('data/') else os.path.join(base_dir, rel_audio)
+            src_path = get_file_path(rel_audio, base_dir, data_dir)
+            print(f"DEBUG: rel_audio = {rel_audio}, src_path = {src_path}")
+            
             if os.path.exists(src_path):
                 shutil.copy2(src_path, os.path.join(export_dir, out_name))
                 print(f"Exported audio: {out_name}")
+                # Add to audio segments for combining
+                try:
+                    audio_segment = AudioSegment.from_file(src_path)
+                    audio_segments.append(audio_segment)
+                    print(f"Added to combined audio: {src_path}")
+                except Exception as e:
+                    print(f"Warning: Could not load audio segment {src_path}: {e}")
             else:
                 missing_files.append(f"Missing audio: {src_path}")
         # Export video
@@ -64,12 +114,34 @@ def export_segments(episode_number):
         if rel_video:
             ext = os.path.splitext(rel_video)[1] or '.mp4'
             out_name = f"{order_str}_{seg_type}_{sanitized}{ext}"
-            src_path = os.path.join(data_dir, rel_video.lstrip('/')) if not rel_video.startswith('data/') else os.path.join(base_dir, rel_video)
+            # Use the same path resolution logic as audio
+            src_path = get_file_path(rel_video, base_dir, data_dir)
+            
             if os.path.exists(src_path):
                 shutil.copy2(src_path, os.path.join(export_dir, out_name))
                 print(f"Exported video: {out_name}")
             else:
                 missing_files.append(f"Missing video: {src_path}")
+
+    # Create combined MP3 file
+    if audio_segments:
+        print(f"\nCreating combined MP3 file from {len(audio_segments)} segments...")
+        try:
+            # Concatenate all audio segments
+            combined_audio = audio_segments[0]
+            for segment in audio_segments[1:]:
+                combined_audio += segment
+            
+            # Export the combined audio
+            combined_filename = f"episode_{episode_number}_combined_{timestamp}.mp3"
+            combined_path = os.path.join(export_dir, combined_filename)
+            combined_audio.export(combined_path, format="mp3")
+            print(f"Successfully created combined MP3: {combined_filename}")
+            print(f"Combined audio duration: {len(combined_audio) / 1000:.2f} seconds")
+        except Exception as e:
+            print(f"Error creating combined MP3: {e}")
+    else:
+        print("No audio segments found to combine")
 
     if missing_files:
         print("Some files were missing:")
