@@ -106,6 +106,34 @@ docker-compose up
 docker-compose up --build
 ```
 
+## Deployment
+
+### Railway (Recommended for Production)
+
+This project is configured for easy deployment to Railway with ephemeral environments for PR previews.
+
+**Quick Deploy:**
+1. Click the "Deploy on Railway" button (or follow the [detailed guide](RAILWAY_DEPLOYMENT.md))
+2. Configure environment variables for backend and frontend
+3. Both services will be deployed with public URLs
+4. PR deployments are automatically created for each pull request
+
+See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) for complete deployment instructions, including:
+- Step-by-step deployment guide
+- Environment variable configuration
+- Ephemeral PR environments setup
+- Custom domain configuration
+- Troubleshooting tips
+
+### Other Deployment Options
+
+The included Dockerfiles make it easy to deploy to any platform that supports Docker:
+- AWS ECS/Fargate
+- Google Cloud Run
+- Azure Container Instances
+- DigitalOcean App Platform
+- Fly.io
+
 ## API Documentation
 
 Once the application is running, you can access the API documentation at:

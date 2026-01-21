@@ -99,6 +99,11 @@ async def root():
     """Root endpoint."""
     return {"message": f"Welcome to the {settings.PROJECT_NAME} API"}
 
+@app.get("/health")
+async def health():
+    """Health check endpoint for Railway and monitoring."""
+    return {"status": "healthy", "service": settings.PROJECT_NAME}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True) 
