@@ -53,8 +53,8 @@ Both services are configured to run on Railway using the included `railway.toml`
    ELEVENLABS_VOICE_ID=your_voice_id
    BASIC_AUTH_USERNAME=admin
    BASIC_AUTH_PASSWORD=your_secure_password
-   PORT=${{PORT}}
    ```
+   Note: Railway automatically sets the PORT variable, so you don't need to configure it.
 
 4. Deploy the service
 

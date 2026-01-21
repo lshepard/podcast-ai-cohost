@@ -26,9 +26,10 @@ RUN mkdir -p /app/data/episodes
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
 
 # Expose port
-EXPOSE 8000
+EXPOSE ${PORT}
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}" 
