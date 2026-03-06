@@ -14,7 +14,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_db
-from app.lib.audio import generate_speech, transcribe_audio, check_elevenlabs_key
+from app.lib.audio import generate_speech, transcribe_audio
 from app.lib.animate import hedra_redis_key
 from app.celery_app import remove_background_task
 

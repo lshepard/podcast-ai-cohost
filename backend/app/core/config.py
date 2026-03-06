@@ -37,6 +37,7 @@ class Config:
     
     # Voice Configuration
     ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
+    GEMINI_TTS_VOICE = os.getenv("GEMINI_TTS_VOICE", "Laomedeia")
     
     # Environment file
     env_file = ".env"

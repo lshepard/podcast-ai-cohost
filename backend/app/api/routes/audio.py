@@ -13,7 +13,7 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db import models
 from app.db.session import get_db
-from app.lib.audio import generate_speech, transcribe_audio, check_elevenlabs_key
+from app.lib.audio import generate_speech, transcribe_audio
 from app.celery_app import remove_background_task, convert_video_to_mp4_task, transcribe_video_task
 
 router = APIRouter()
@@ -26,7 +26,7 @@ async def synthesize_speech(
     db: Session = Depends(get_db),
     _: str = Depends(get_current_user),
 ):
-    """Generate speech from text using ElevenLabs."""
+    """Generate speech from text using Gemini TTS."""
     
     # Check if segment exists
     db_segment = (
@@ -110,30 +110,23 @@ async def upload_audio(
     return {"success": True, "message": "Audio uploaded successfully", "file_path": file_path}
 
 
-@router.get("/audio/test-elevenlabs")
-async def test_elevenlabs(
+@router.get("/audio/test-tts")
+async def test_tts(
     _: str = Depends(get_current_user),
 ):
-    """Test ElevenLabs API connection and voice availability."""
-    
-    # Check API key validity
-    key_valid, key_message = check_elevenlabs_key()
-    
-    # Specific voice ID test
-    specific_voice_id = "jHVm0BlYCoqPpa5khLNP"  # Sarah montana voice ID
-    
+    """Test Gemini TTS API connection."""
+
     # Test a short text-to-speech conversion
-    test_text = "This is a test of the ElevenLabs integration."
-    test_output_path = f"/episodes/test/elevenlabs_test_{uuid.uuid4()}.mp3"
-    
+    test_text = "This is a test of the Gemini TTS integration."
+    test_output_path = f"/episodes/test/gemini_tts_test_{uuid.uuid4()}.mp3"
+
     tts_success, tts_message, tts_path = generate_speech(test_text, test_output_path)
-    
+
     return {
-        "api_key_valid": key_valid,
-        "api_key_message": key_message,
         "speech_generation_success": tts_success,
         "speech_generation_message": tts_message,
-        "test_file_path": tts_path
+        "test_file_path": tts_path,
+        "voice": settings.GEMINI_TTS_VOICE
     }
 
 

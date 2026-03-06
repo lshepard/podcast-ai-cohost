@@ -145,4 +145,11 @@ class GenerateTextRequest(BaseModel):
 class GenerateTextResponse(BaseModel):
     success: bool
     message: str
-    text: Optional[str] = None 
+    text: Optional[str] = None
+
+
+# Search schemas
+class SearchResults(BaseModel):
+    episodes: List[Episode] = []
+    segments: List[Segment] = []
+    sources: List[Source] = [] 
